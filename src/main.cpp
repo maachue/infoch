@@ -1,7 +1,11 @@
 #include <exception>
+
 #include <fmt/base.h>
 
 #include "cli.hpp"
+#include "terminal/cbreak_mode.hpp"
+#include "terminal/io.hpp"
+#include "terminal/tty.hpp"
 
 template <> struct fmt::formatter<image::ImageType> {
   // NOLINTBEGIN(readability-convert-member-functions-to-static)
@@ -53,12 +57,27 @@ int main(int argc, char **argv) {
   }
 
   try {
-    fmt::print("Config: {}\n"
-               "Image: {}\n"
-               "Image type: {}\n"
-               "Image width X height: {}x{}\n",
-               cli.config.string(), cli.image.string(), cli.image_type,
-               cli.image_width, cli.image_height);
+    {
+      terminal::open_devtty();
+      terminal::init_cbreak_mode();
+      terminal::init_buff(true);
+    }
+
+    struct Obj {
+      Obj() = default;
+      ~Obj() {
+        terminal::deinit_cbreak_mode();
+        terminal::close_devtty();
+        terminal::deinit_buff();
+      }
+    } do_not_touch{};
+
+    terminal::print("Config: {}\n"
+                      "Image: {}\n"
+                      "Image type: {}\n"
+                      "Image width X height: {}x{}\n",
+                      cli.config.string(), cli.image.string(), cli.image_type,
+                      cli.image_width, cli.image_height);
 
     fmt::println("Hello, World!");
   } catch (std::exception const &err) {

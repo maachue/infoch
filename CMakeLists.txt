@@ -18,6 +18,8 @@ set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
 set(PROJECT_SOURCES src/main.cpp
                     src/cli_utils.cpp
                     src/cli.cpp
+                    src/terminal/io.cpp
+                    src/terminal/tty.cpp
                     src/terminal/cbreak_mode.cpp
 )
 
