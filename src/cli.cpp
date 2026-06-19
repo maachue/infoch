@@ -152,7 +152,9 @@ std::expected<Cli, int> cli_parse(int argc, char **argv) noexcept {
     std::vector<std::string_view> vec =
         std::ranges::views::counted(std::next(argv), argc - 1) |
         std::ranges::to<std::vector<std::string_view>>();
-    for (size_t i = 0; i < vec.size(); ++i) {
+    size_t i = 0;
+
+    for (; i < vec.size(); ++i) {
       arg = vec[i];
 
       if (arg == "--help" || arg == "-h") {
@@ -165,6 +167,10 @@ std::expected<Cli, int> cli_parse(int argc, char **argv) noexcept {
         version_msg();
         return std::unexpected{0};
       }
+    }
+
+    for (i = 0; i < vec.size(); ++i) {
+      arg = vec[i];
 
       if (arg.length() > 2 && arg.starts_with("--")) {
         arg.remove_prefix(2); // remove `--`
