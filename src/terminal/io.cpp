@@ -55,7 +55,6 @@ void deinit_buff() {
   if (file != nullptr) {
     fclose(file);
     file = nullptr;
-    fmt::println(stderr, "deinit buff");
   }
 }
 

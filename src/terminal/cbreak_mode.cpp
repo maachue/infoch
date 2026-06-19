@@ -60,7 +60,6 @@ void deinit_cbreak_mode() noexcept {
   }
 
   if (is_init.load(std::memory_order_relaxed)) {
-    fmt::println(stderr, "deinit cbreak");
     is_init = tcsetattr(fd, TCSANOW, &original_term) == -1;
   }
 }

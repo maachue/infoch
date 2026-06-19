@@ -38,11 +38,14 @@ void help_msg() {
   fmt::print("{2}Options:{0}\n"
              "  {1}-h, --help{0}                                 Show this help message\n"
              "  {1}-c, --config{0} {3}<config>{0}                      Specify the config file to load\n"
+             "  {1}    --force-tty{0}                            Force output to terminal, ignoring shell redirections\n"
+             "  {1}    --ignore-redirect{0}                      Ignore shell output redirection\n"
              "  {1}-i, --image{0} {3}<logo>{0}                         Set the image source. \"none\" to disable\n"
-             "  {1}-T,  --image-type{0} {3}<enum>{0}                    Set type of iamge\n"
+             "  {1}-T, --image-type{0} {3}<enum>{0}                    Set type of iamge\n"
              "  {1}    --image-width{0} {3}<num>{0}                    Set the width of the image in cells\n"
-             "  {1}    --image-height{0} {3}<num>{0}                   Set the height of the image in cells\n",
-
+             "  {1}    --image-height{0} {3}<num>{0}                   Set the height of the image in cells\n"
+             "  {1}    --image-padding-left{0} {3}num{0}                  Set the padding image from left\n"
+             "  {1}    --image-padding-top{0} {3}num{0}                 Set the padding image from top\n",
              kReset, kBold, kBoldUnderline, kItalic);
   // clang-format on
 }
@@ -58,13 +61,17 @@ constexpr std::array kCliArgs = {
            [](Cli &cli, std::string_view str) {
              cli.config = std::filesystem::path(str);
            }),
+    CliOpt("force-tty", {}, false,
+           [](Cli &cli, std::string_view) { cli.no_redirect = true; }),
+    CliOpt("ignore-redirect", {}, false,
+           [](Cli &cli, std::string_view) { cli.no_check_stdout = true; }),
     CliOpt("image", "i", true,
            [](Cli &cli, std::string_view str) {
              cli.image = std::filesystem::path(str);
            }),
     CliOpt("image-type", "T", true,
            [](Cli &cli, std::string_view str) {
-             if (str == "none") {
+             if (str == "none" || str == "None") {
                cli.image_type = image::ImageType::Disable;
                return;
              }
@@ -103,13 +110,34 @@ constexpr std::array kCliArgs = {
                    fmt::format(R"(invalid "--image-width" value "{}")", str));
              }
            }),
-    CliOpt("image-height", {}, true, [](Cli &cli, std::string_view str) {
+    CliOpt("image-height", {}, true,
+           [](Cli &cli, std::string_view str) {
+             auto [ptr, err] = std::from_chars(
+                 str.data(), str.data() + str.length(), cli.image_height);
+             if (err != std::errc{}) {
+               throw std::system_error(
+                   std::make_error_code(err),
+                   fmt::format(R"(invalid "--image-height" value "{}")", str));
+             }
+           }),
+    CliOpt("image-padding-left", {}, true,
+           [](Cli &cli, std::string_view str) {
+             auto [ptr, err] = std::from_chars(
+                 str.data(), str.data() + str.length(), cli.image_padding_left);
+             if (err != std::errc{}) {
+               throw std::system_error(
+                   std::make_error_code(err),
+                   fmt::format(R"(invalid "--image-padding-left" value "{}")",
+                               str));
+             }
+           }),
+    CliOpt("image-padding-top", {}, true, [](Cli &cli, std::string_view str) {
       auto [ptr, err] = std::from_chars(str.data(), str.data() + str.length(),
-                                        cli.image_height);
+                                        cli.image_padding_top);
       if (err != std::errc{}) {
         throw std::system_error(
             std::make_error_code(err),
-            fmt::format(R"(invalid "--image-height" value "{}")", str));
+            fmt::format(R"(invalid "--image-padding-top" value "{}")", str));
       }
     })};
 
@@ -119,8 +147,6 @@ std::expected<Cli, int> cli_parse(int argc, char **argv) noexcept {
   try {
     Cli cli{};
     cli.image_type = image::ImageType::Kitty;
-    cli.image_width = 20;
-    cli.image_height = 10;
 
     std::string_view arg;
     std::vector<std::string_view> vec =
@@ -178,6 +204,11 @@ std::expected<Cli, int> cli_parse(int argc, char **argv) noexcept {
       }
 
       throw std::runtime_error(fmt::format("unknown argument: \"{}\"", vec[i]));
+    }
+
+    if (cli.no_redirect && cli.no_check_stdout) {
+      throw std::runtime_error(
+          R"(no redirect option conflict with no check stdout)");
     }
 
     return cli;

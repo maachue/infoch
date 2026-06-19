@@ -16,11 +16,17 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
 
 set(PROJECT_SOURCES src/main.cpp
+                    src/base64.cpp
                     src/cli_utils.cpp
                     src/cli.cpp
-                    src/terminal/io.cpp
                     src/terminal/tty.cpp
                     src/terminal/cbreak_mode.cpp
+                    src/terminal/term_size.cpp
+                    src/terminal/io.cpp
+                    src/terminal/term_query.cpp
+                    src/image/image.cpp
+                    src/image/magick7.cpp
+                    src/image/fn.cpp
 )
 
 add_executable(${PROJECT_NAME} ${PROJECT_SOURCES})

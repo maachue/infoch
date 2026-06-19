@@ -1,10 +1,17 @@
 #include <exception>
 
 #include <fmt/base.h>
+#include <stdexcept>
+#include <system_error>
 
 #include "cli.hpp"
+#include "image/fn.hpp"
+#include "image/image.hpp"
+#include "settings/image.hpp"
 #include "terminal/cbreak_mode.hpp"
 #include "terminal/io.hpp"
+#include "terminal/term_query.hpp"
+#include "terminal/term_size.hpp"
 #include "terminal/tty.hpp"
 
 template <> struct fmt::formatter<image::ImageType> {
@@ -60,11 +67,15 @@ int main(int argc, char **argv) {
     {
       terminal::open_devtty();
       terminal::init_cbreak_mode();
-      terminal::init_buff(true);
+      terminal::init_buff(cli.no_redirect);
+      terminal::fetch_terminal_size();
     }
 
     struct Obj {
-      Obj() = default;
+      Obj() {
+        terminal::print("\x1b[?7l\x1b[2J\x1b[H");
+        terminal::flush();
+      }
       ~Obj() {
         terminal::deinit_cbreak_mode();
         terminal::close_devtty();
@@ -72,14 +83,26 @@ int main(int argc, char **argv) {
       }
     } do_not_touch{};
 
-    terminal::print("Config: {}\n"
-                      "Image: {}\n"
-                      "Image type: {}\n"
-                      "Image width X height: {}x{}\n",
-                      cli.config.string(), cli.image.string(), cli.image_type,
-                      cli.image_width, cli.image_height);
+    std::uint16_t x = 0;
+    std::uint16_t y = 0;
 
-    fmt::println("Hello, World!");
+    settings::Image image_set{.path = cli.image,
+                              .type = cli.image_type,
+                              .cell_width = cli.image_width,
+                              .cell_height = cli.image_height,
+                              .padding_width = cli.image_padding_left,
+                              .padding_height = cli.image_padding_top};
+
+    std::exception_ptr ptr = nullptr;
+    image::print_image(image_set, x, y, ptr);
+
+    terminal::print("!!!!"); // check cursor postion after print (debug)
+    terminal::flush();
+
+    terminal::println("\n\n\n{}x{}", x, y);
+    if (ptr) {
+      std::rethrow_exception(ptr);
+    }
   } catch (std::exception const &err) {
     fmt::println(stderr, "\x1b[31;1merror:\x1b[0m {}.", err.what());
   }

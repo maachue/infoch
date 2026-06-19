@@ -14,8 +14,8 @@ struct Image {
   std::uint16_t cell_width;
   std::uint16_t cell_height;
 
-  std::uint16_t padding_cols;
-  std::uint16_t padidng_rows;
+  std::uint16_t padding_width;
+  std::uint16_t padding_height;
 };
 } // namespace settings
 
