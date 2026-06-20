@@ -7,7 +7,7 @@
 #include <cstdio>
 #include <system_error>
 
-#include <fmt/base.h>
+// #include <fmt/base.h>
 
 #include "terminal/tty.hpp"
 
@@ -48,11 +48,12 @@ void init_buff(bool bypass) {
         errno, std::generic_category(),
         "(init_buff) cannot convert file descriptor to FILE*");
   }
-  fmt::println(stderr, "init buff");
+  // fmt::println(stderr, "init buff");
 }
 
 void deinit_buff() {
   if (file != nullptr) {
+    // fmt::println(stderr, "fclose !");
     fclose(file);
     file = nullptr;
   }

@@ -13,6 +13,11 @@
 #include "terminal/tty.hpp"
 
 namespace terminal {
+QueryTerminalErrCategory const &queryterminalerr_category() noexcept {
+  static QueryTerminalErrCategory cate;
+  return cate;
+}
+
 int query_terminal(std::error_code &err, std::string_view query, int nparams,
                    const char *pattern, ...) {
   err.clear();
@@ -26,7 +31,8 @@ int query_terminal(std::error_code &err, std::string_view query, int nparams,
     return -1;
   }
   if (static_cast<size_t>(n) != query.length()) {
-    return -4;
+    err = QueryTerminalErrCode::CannotWriteToTTY;
+    return -1;
   }
 
   n = 0;
@@ -37,7 +43,8 @@ int query_terminal(std::error_code &err, std::string_view query, int nparams,
     return -1;
   }
   if (n == 0) {
-    return -2;
+    err = QueryTerminalErrCode::CannotPollingTTY;
+    return -1;
   }
 
   char buffer[1024];
@@ -52,7 +59,9 @@ int query_terminal(std::error_code &err, std::string_view query, int nparams,
 
     if (n <= 0) {
       va_end(args);
-      return -3;
+
+      err = QueryTerminalErrCode::CannotParseInput;
+      return -1;
     }
 
     bytes_read += n;
@@ -65,7 +74,9 @@ int query_terminal(std::error_code &err, std::string_view query, int nparams,
 
     if (ret <= 0) {
       va_end(args);
-      return -3;
+
+      err = QueryTerminalErrCode::CannotParseInput;
+      return -1;
     }
     if (ret >= nparams) {
       break;

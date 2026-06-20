@@ -45,7 +45,7 @@ bool init_cbreak_mode() {
   }
 
   is_init.store(is_init_);
-  fmt::println(stderr, "init cbreak");
+  // fmt::println(stderr, "init cbreak");
 
   return is_init;
 }
@@ -60,6 +60,7 @@ void deinit_cbreak_mode() noexcept {
   }
 
   if (is_init.load(std::memory_order_relaxed)) {
+    // fmt::println(stderr, "deinit cbreak");
     is_init = tcsetattr(fd, TCSANOW, &original_term) == -1;
   }
 }

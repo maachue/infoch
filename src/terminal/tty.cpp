@@ -5,6 +5,8 @@
 #include <stdexcept>
 #include <system_error>
 
+// #include <fmt/base.h>
+
 namespace terminal {
 constinit std::atomic<term_t> ftty{-1};
 
@@ -18,12 +20,14 @@ void open_devtty() {
     throw std::system_error(errno, std::generic_category(),
                             "failed to open \"/dev/tty\"");
   }
+  // fmt::println(stderr, "open /dev/tty");
   ftty.store(fd);
 }
 
 void close_devtty() {
   int fd = ftty.load();
   if (fd != -1) {
+    // fmt::println(stderr, "close /dev/tty");
     ::close(fd);
     ftty.store(-1); // backup!
   }

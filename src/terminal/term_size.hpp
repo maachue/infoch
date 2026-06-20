@@ -2,6 +2,9 @@
 #define INFOCH_TERMINAL_TERM_SIZE_H
 
 #include <cstdint>
+#include <string>
+#include <system_error>
+#include <type_traits>
 
 namespace terminal {
 struct TermSize {
@@ -19,7 +22,40 @@ struct TermSize {
 
 extern constinit TermSize termsize;
 
-void fetch_terminal_size();
+enum class TermFetchSizeErrCode { CannotQueryPixelSize, CannotQueryCellSize };
+
+class TermFetchSizeErrCategory : public std::error_category {
+public:
+  const char *name() const noexcept override { return "TermFetchSizeErr"; }
+
+  std::string message(int ev) const override {
+    switch (static_cast<TermFetchSizeErrCode>(ev)) {
+      using enum TermFetchSizeErrCode;
+
+    case CannotQueryPixelSize:
+      return "Cannot query terminal "
+             "size (pixels)";
+    case CannotQueryCellSize:
+      return "Cannot query terminal "
+             "size (cells)";
+    default:
+      return "??";
+    }
+  }
+};
+
+const std::error_category &termfetchsize_category() noexcept;
+
+inline std::error_code make_error_code(TermFetchSizeErrCode e) noexcept {
+  return {static_cast<int>(e), termfetchsize_category()};
+}
+
+int fetch_terminal_size(std::error_code &err) noexcept;
 } // namespace terminal
+
+namespace std {
+template <>
+struct is_error_code_enum<terminal::TermFetchSizeErrCode> : true_type {};
+} // namespace std
 
 #endif

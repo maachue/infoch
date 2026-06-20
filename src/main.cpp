@@ -64,24 +64,37 @@ int main(int argc, char **argv) {
   }
 
   try {
-    {
-      terminal::open_devtty();
-      terminal::init_cbreak_mode();
-      terminal::init_buff(cli.no_redirect);
-      terminal::fetch_terminal_size();
-    }
+    struct DevTTYLifetime {
+      DevTTYLifetime() { terminal::open_devtty(); }
+      ~DevTTYLifetime() { terminal::close_devtty(); }
+    } dev_tty_life_time_do_not_touch{};
 
-    struct Obj {
-      Obj() {
-        terminal::print("\x1b[?7l\x1b[2J\x1b[H");
+    struct CBreakModeLifetime {
+      CBreakModeLifetime() { terminal::init_cbreak_mode(); }
+      ~CBreakModeLifetime() { terminal::deinit_cbreak_mode(); }
+    } cbreak_mode_life_time_do_not_touch{};
+
+    struct BuffLifetime {
+      BuffLifetime(cli::Cli &cli) { terminal::init_buff(cli.no_redirect); }
+      ~BuffLifetime() { terminal::deinit_buff(); }
+    } buff_lifetime_do_not_touch{cli};
+
+    struct OptinalConfigureTerm {
+      OptinalConfigureTerm() {
+        terminal::print("\x1b[?7l");
         terminal::flush();
       }
-      ~Obj() {
-        terminal::deinit_cbreak_mode();
-        terminal::close_devtty();
-        terminal::deinit_buff();
-      }
-    } do_not_touch{};
+      ~OptinalConfigureTerm() {
+        terminal::print("\x1b[?7h");
+      } // this will flush when BuffLifetime::~BuffLifetime() call
+    } opt_config_do_not_touch{};
+
+    std::error_code err{};
+    terminal::fetch_terminal_size(err);
+
+    if (err) {
+      throw std::system_error(err, "failed to fetch terminal size");
+    }
 
     std::uint16_t x = 0;
     std::uint16_t y = 0;
