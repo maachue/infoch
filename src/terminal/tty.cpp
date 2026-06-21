@@ -1,7 +1,4 @@
 #include "tty.hpp"
-#include <atomic>
-#include <handleapi.h>
-#include <winnt.h>
 
 #ifndef _WIN32
 #include <fcntl.h>
@@ -9,6 +6,7 @@
 #include <windows.h>
 #endif
 
+#include <atomic>
 #include <stdexcept>
 #include <system_error>
 
