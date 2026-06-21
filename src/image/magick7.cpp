@@ -13,12 +13,12 @@ using Magick::Geometry;
 using Magick::Image;
 
 namespace image::internal {
-Blob magick_image(const char *path, const char *type, bool keep_aspect_radio,
-                  size_t &width, size_t &height) {
-  assert(path != nullptr && type != nullptr &&
+Blob magick_image(std::u8string &&path, const char *type,
+                  bool keep_aspect_radio, size_t &width, size_t &height) {
+  assert(path.empty() && type != nullptr &&
          "(image/magick7:magick_image) shit caller, are you dumb?");
   Image image;
-  image.read(path);
+  image.read(std::string(path.begin(), path.end()));
   if (keep_aspect_radio) {
     image.resize(Geometry(width, height));
   } else {

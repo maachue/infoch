@@ -68,6 +68,7 @@ constexpr std::array kCliArgs = {
     CliOpt("image", "i", true,
            [](Cli &cli, std::string_view str) {
              cli.image = std::filesystem::path(str);
+             cli.image.make_preferred();
            }),
     CliOpt("image-type", "T", true,
            [](Cli &cli, std::string_view str) {
@@ -146,7 +147,6 @@ std::expected<Cli, int> cli_parse(int argc, char **argv) noexcept {
   // NOLINTEND(readability-function-cognitive-complexity)
   try {
     Cli cli{};
-    cli.image_type = image::ImageType::Kitty;
 
     std::string_view arg;
     std::vector<std::string_view> vec =
@@ -174,7 +174,7 @@ std::expected<Cli, int> cli_parse(int argc, char **argv) noexcept {
 
       if (arg.length() > 2 && arg.starts_with("--")) {
         arg.remove_prefix(2); // remove `--`
-        const auto *ptr = std::ranges::find_if(
+        auto ptr = std::ranges::find_if(
             kCliArgs, [&](auto const &opt) { return opt.match_long(arg); });
 
         if (ptr != kCliArgs.end()) {
@@ -193,7 +193,7 @@ std::expected<Cli, int> cli_parse(int argc, char **argv) noexcept {
                 arg));
           }
 
-          const auto *ptr = std::ranges::find_if(
+          auto ptr = std::ranges::find_if(
               kCliArgs, [&](auto const &opt) { return opt.match_short(t); });
 
           if (ptr != kCliArgs.end()) {

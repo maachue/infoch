@@ -4,7 +4,7 @@
 #include <Magick++/Blob.h>
 
 namespace image::internal {
-Magick::Blob magick_image(const char *path, const char *type,
+Magick::Blob magick_image(std::u8string &&path, const char *type,
                           bool keep_aspect_radio, size_t &width,
                           size_t &height);
 } // namespace image::internal

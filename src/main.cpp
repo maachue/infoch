@@ -1,55 +1,19 @@
+#include <Magick++/Functions.h>
 #include <exception>
 
 #include <fmt/base.h>
 #include <stdexcept>
 #include <system_error>
 
+#include <Magick++.h>
+
 #include "cli.hpp"
-#include "image/fn.hpp"
 #include "image/image.hpp"
 #include "settings/image.hpp"
 #include "terminal/cbreak_mode.hpp"
 #include "terminal/io.hpp"
-#include "terminal/term_query.hpp"
 #include "terminal/term_size.hpp"
 #include "terminal/tty.hpp"
-
-template <> struct fmt::formatter<image::ImageType> {
-  // NOLINTBEGIN(readability-convert-member-functions-to-static)
-  constexpr auto parse(format_parse_context &ctx) { return ctx.begin(); }
-
-  auto format(const image::ImageType &p, format_context &ctx) const {
-    using enum image::ImageType;
-    std::string_view str{};
-
-    switch (p) {
-    case Kitty:
-      str = "kitty";
-      break;
-    case Disable:
-      str = "disable";
-      break;
-    case Auto:
-      str = "auto";
-      break;
-    // case KittyIcat:
-    //   str = "kitty-icat";
-    //   break;
-    case Sixel:
-      str = "sixel";
-      break;
-    case Iterm:
-      str = "iterm";
-      break;
-    default:
-      str = "idk";
-      break;
-    }
-
-    return fmt::format_to(ctx.out(), "{}", str);
-  }
-  // NOLINTEND(readability-convert-member-functions-to-static)
-};
 
 int main(int argc, char **argv) {
   cli::Cli cli{};
@@ -64,6 +28,8 @@ int main(int argc, char **argv) {
   }
 
   try {
+    Magick::InitializeMagick(*argv);
+
     struct DevTTYLifetime {
       DevTTYLifetime() { terminal::open_devtty(); }
       ~DevTTYLifetime() { terminal::close_devtty(); }
@@ -81,19 +47,23 @@ int main(int argc, char **argv) {
 
     struct OptinalConfigureTerm {
       OptinalConfigureTerm() {
-        terminal::print("\x1b[?7l");
+        terminal::print("\x1b[?7l\x1b[>1u");
         terminal::flush();
       }
       ~OptinalConfigureTerm() {
-        terminal::print("\x1b[?7h");
+        terminal::print("\x1b[?7h\x1b[<1u");
       } // this will flush when BuffLifetime::~BuffLifetime() call
     } opt_config_do_not_touch{};
 
     std::error_code err{};
-    terminal::fetch_terminal_size(err);
+    auto d = terminal::fetch_terminal_size(err);
 
-    if (err) {
-      throw std::system_error(err, "failed to fetch terminal size");
+    if (d != 0) {
+      if (err) {
+        throw std::system_error(err, "failed to fetch terminal size");
+      }
+
+      throw std::runtime_error("failed to fetch terminal size by unkown error");
     }
 
     std::uint16_t x = 0;

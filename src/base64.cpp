@@ -17,7 +17,12 @@ std::string base64_encode(std::span<const char> bytes) {
   const auto *curr = bytes.data();
   const auto *ends = curr + (bytes.size() - bytes.size() % 3);
   while (curr != ends) {
-    fbytes = __builtin_bswap32(*(std::uint32_t *)curr);
+    fbytes =
+#ifndef _MSC_VER
+        __builtin_bswap32(*(std::uint32_t *)curr);
+#else
+        _byteswap_ulong(*(std::uint32_t *)curr);
+#endif
     str += kBase64Charset[(fbytes >> 26) & 63];
     str += kBase64Charset[(fbytes >> 20) & 63];
     str += kBase64Charset[(fbytes >> 14) & 63];

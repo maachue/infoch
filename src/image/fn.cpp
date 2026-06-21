@@ -27,11 +27,20 @@ get_size_from_cell_size(const std::filesystem::path &path, std::uint16_t &width,
   size_t pwidth = 0;
   size_t pheight = 0;
 
-  Magick::Image image;
-  image.ping(path.c_str());
+  size_t iwidth = 0;
+  size_t iheight = 0;
 
-  auto iwidth = image.columns();
-  auto iheight = image.rows();
+  {
+    Magick::Image image;
+    {
+      auto stt = path.u8string();
+      std::string path_s(stt.begin(), stt.end());
+      image.read(path_s);
+    }
+
+    iwidth = image.columns();
+    iheight = image.rows();
+  }
 
   auto ratio = static_cast<double>(iheight) / iwidth; // NOLINT
   if (std::isnan(ratio)) {
@@ -81,8 +90,8 @@ void kitty_print_image(const std::filesystem::path &path, size_t width,
                        size_t height) {
   constexpr size_t kKittyMaxBlob = 4096;
 
-  auto blob =
-      image::internal::magick_image(path.c_str(), "RGBA", true, width, height);
+  auto blob = image::internal::magick_image(path.u8string(), "RGBA", true,
+                                            width, height);
   auto str = blob.base64();
 
   size_t remaining_length = str.length();
@@ -128,8 +137,8 @@ void kitty_path_print_image(std::filesystem::path const &path, size_t width,
 
 void iterm_print_image(std::filesystem::path const &path, size_t width,
                        size_t height) {
-  auto blob =
-      image::internal::magick_image(path.c_str(), "PNG", true, width, height);
+  auto blob = image::internal::magick_image(path.u8string(), "PNG", true, width,
+                                            height);
   auto str = blob.base64();
 
   terminal::print("\x1b]1337;File=inline=1:{}\a", str);

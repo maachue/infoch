@@ -33,6 +33,7 @@ void print_image(const settings::Image &set, std::uint16_t &curr_x,
     size_t height = 0;
 
     if (set.type == ImageType::Auto) {
+      return;
     }
 
     {

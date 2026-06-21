@@ -21,9 +21,9 @@ set(PROJECT_SOURCES src/main.cpp
                     src/cli.cpp
                     src/terminal/tty.cpp
                     src/terminal/cbreak_mode.cpp
+                    src/terminal/term_query.cpp
                     src/terminal/term_size.cpp
                     src/terminal/io.cpp
-                    src/terminal/term_query.cpp
                     src/image/image.cpp
                     src/image/magick7.cpp
                     src/image/fn.cpp
@@ -32,7 +32,19 @@ set(PROJECT_SOURCES src/main.cpp
 add_executable(${PROJECT_NAME} ${PROJECT_SOURCES})
 target_include_directories(${PROJECT_NAME} PRIVATE include/ src/)
 
-find_package(PkgConfig REQUIRED)
+if(WIN32)
+  target_compile_definitions(${PROJECT_NAME} PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX)
+
+  if(MINGW)
+    target_link_libraries(${PROJECT_NAME} PRIVATE "ntdll")
+  else()
+    target_link_libraries(${PROJECT_NAME} PRIVATE "ntdll.lib")
+  endif()
+endif()
+
+if(NOT WIN32)
+  find_package(PkgConfig REQUIRED)
+endif()
 
 find_package(fmt QUIET)
 if(NOT fmt_FOUND)
@@ -47,10 +59,16 @@ target_link_libraries(${PROJECT_NAME} PRIVATE fmt::fmt)
 
 option(USE_MAGICK "Magick as image backend (default)." ON)
 
-find_package(ImageMagick 7.0.0 REQUIRED COMPONENTS Magick++)
-target_link_libraries(${PROJECT_NAME} PRIVATE ImageMagick::Magick++)
+find_package(ImageMagick 7.0.0 REQUIRED COMPONENTS Magick++ MagickCore)
+target_link_libraries(${PROJECT_NAME} PRIVATE ImageMagick::Magick++ ImageMagick::MagickCore)
 
 option(USE_JEMALLOC "Use jemalloc." "AUTO")
+
+if(WIN32 AND USE_JEMALLOC STREQUAL "AUTO" OR USE_JEMALLOC STREQUAL "FORCE")
+  message(STATUS "Sorry, I lazy to write find jemalloc on windows")
+  set(USE_JEMALLOC "")
+endif()
+
 if(USE_JEMALLOC STREQUAL "AUTO")
   pkg_check_modules(JEMALLOC QUIET jemalloc)
 

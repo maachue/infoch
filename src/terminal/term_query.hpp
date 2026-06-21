@@ -25,6 +25,8 @@ public:
       return "Cannot poll terminal";
     case CannotParseInput:
       return "Cannot parse terminal input";
+    default:
+      return "(QueryTerminalErr) unkown error";
     }
   }
 };
