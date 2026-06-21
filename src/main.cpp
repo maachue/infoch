@@ -78,14 +78,14 @@ int main(int argc, char **argv) {
 
     std::exception_ptr ptr = nullptr;
     image::print_image(image_set, x, y, ptr);
+    if (ptr) {
+      std::rethrow_exception(ptr);
+    }
 
     terminal::print("!!!!"); // check cursor postion after print (debug)
     terminal::flush();
 
     terminal::println("\n\n\n{}x{}", x, y);
-    if (ptr) {
-      std::rethrow_exception(ptr);
-    }
   } catch (std::exception const &err) {
     fmt::println(stderr, "\x1b[31;1merror:\x1b[0m {}.", err.what());
   }

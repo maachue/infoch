@@ -87,8 +87,15 @@ void print_image(const settings::Image &set, std::uint16_t &curr_x,
     case ImageType::Iterm:
       image::internal::iterm_print_image(set.path, width, height);
       break;
+    case ImageType::KittyPath:
+      image::internal::kitty_path_print_image(set.path, width, height);
+      break;
+    case ImageType::Sixel:
+      image::internal::sixel_print_image(set.path, width, height);
+      break;
     default:
-      terminal::println("huh? Calc: {}x{}", width, height);
+      terminal::print("huh? Calc: {}x{}", width, height);
+      terminal::flush();
       break;
     }
   } catch (...) {

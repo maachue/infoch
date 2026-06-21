@@ -143,4 +143,13 @@ void iterm_print_image(std::filesystem::path const &path, size_t width,
 
   terminal::print("\x1b]1337;File=inline=1:{}\a", str);
 }
+
+void sixel_print_image(std::filesystem::path const &path, size_t width,
+                       size_t height) {
+  auto blob = image::internal::magick_image(path.u8string(), "SIXEL", true,
+                                            width, height);
+  terminal::print("{}",
+                  std::string_view(reinterpret_cast<const char *>(blob.data()),
+                                   blob.length()));
+}
 } // namespace image::internal

@@ -82,11 +82,11 @@ constexpr std::array kCliArgs = {
                return;
              }
 
-             // if (str == "kitty-icat" || str == "KittyIcat" ||
-             //     str == "kitty_icat") {
-             //   cli.image_type = image::ImageType::KittyIcat;
-             //   return;
-             // }
+             if (str == "kitty-path" || str == "KittyPath" ||
+                 str == "kitty_path") {
+               cli.image_type = image::ImageType::KittyPath;
+               return;
+             }
 
              if (str == "sixel" || str == "Sixel") {
                cli.image_type = image::ImageType::Sixel;
