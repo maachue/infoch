@@ -1,12 +1,15 @@
 #include "detection.hpp"
 
 #ifndef _WIN32
+#include <cerrno>
 #include <poll.h>
 #include <unistd.h>
+#else
+#include <windows.h>
+#include <winternl.h>
 #endif
 
 #include <atomic>
-#include <cerrno>
 #include <charconv>
 #include <ranges>
 #include <stdexcept>
@@ -83,6 +86,68 @@ bool is_support_sixel() {
       break;
     }
   }
+#else
+  auto *htermout = termout_handle.load(std::memory_order_relaxed);
+  auto *htermin = termin_handle.load(std::memory_order_relaxed);
+
+  DWORD n = 0;
+  if (WriteFile(htermout, kRequestDA.data(), kRequestDA.length(), &n,
+                nullptr) == 0) {
+    throw std::system_error(
+        static_cast<int>(GetLastError()), std::system_category(),
+        "(is_support_sixel) failed to write escape sequence DA (Primary Device "
+        "Attribute) to terminal output handle");
+  }
+
+  if (n != kRequestDA.length()) {
+    throw std::runtime_error(
+        "(is_support_sixel) failed to write escape sequence DA (Primary Device "
+        "Attribute) to terminal output handle: not enough bytes");
+  }
+
+  LARGE_INTEGER tmp{.QuadPart = (int64_t)100 * -10000};
+  while (true) {
+    if (NtWaitForSingleObject(htermin, FALSE, &tmp) != STATUS_WAIT_0) {
+      throw std::runtime_error(
+          "(is_support_sixel) failed to polling terminal input");
+    }
+
+    INPUT_RECORD record{};
+    if (PeekConsoleInputW(htermin, &record, 1, &n) == 0) {
+      break;
+    }
+
+    if (record.EventType == KEY_EVENT &&
+        record.Event.KeyEvent.uChar.UnicodeChar != L'\r' &&
+        record.Event.KeyEvent.uChar.UnicodeChar != L'\n') {
+      break;
+    }
+
+    ReadConsoleInputW(htermin, &record, 1, &n);
+  }
+
+  while (true) {
+    if (ReadFile(htermin, buffer + bytes_read, sizeof(buffer) - bytes_read, &n,
+                 nullptr) == 0) {
+      throw std::system_error(
+          static_cast<int>(GetLastError()), std::system_category(),
+          "(is_support_sixel) failed to read terminal input handle");
+    }
+
+    if (n == 0) {
+      break;
+    }
+
+    bytes_read += n;
+
+    if (bytes_read >= sizeof(buffer) - bytes_read) {
+      break;
+    }
+
+    if (buffer[bytes_read - 1] == 'c') {
+      break;
+    }
+  }
 #endif
 
   std::string_view buff(buffer, bytes_read);
@@ -115,7 +180,7 @@ bool is_support_sixel() {
     if (token.empty()) {
       continue;
       // NOTE: cannot throw error because on some terminal such as kitty, it
-      // replied with a parameter actually contain nothing like: \x1b[?62;52;c.
+      // replied with a parameter actually contains nothing like: \x1b[?62;52;c.
 
       // throw std::runtime_error("(is_support_sixel) failed to know DA (Primary
       // "
@@ -193,7 +258,14 @@ const Terminal &get_terminal(bool force_screen, bool force_tmux,
     term.name = "ghostty";
   } else if (WEZTERM_DETECTION) {
     term.name = "wezterm";
-  } else if (char *lc_term = std::getenv("LC_TERMINAL")) {
+  }
+#if defined(__linux__) || defined(_WIN32)
+  // WSL and Windows (Windows Terminal)
+  else if (std::getenv("WT_SESSION") || std::getenv("WT_PROFILE_ID")) {
+    term.name = "windows_terminal";
+  }
+#endif
+  else if (char *lc_term = std::getenv("LC_TERMINAL")) {
     term.name = lc_term;
   } else if (term_program_env_) {
     term.name = term_program_env_;
@@ -210,6 +282,8 @@ const Terminal &get_terminal(bool force_screen, bool force_tmux,
       term.name = "kitty";
     } else if (term.name.contains("ghostty")) {
       term.name = "ghostty";
+    } else if (term.name.contains("WezTerm")) {
+      term.name = "wezterm";
     }
   }
 
@@ -226,7 +300,7 @@ const Terminal &get_terminal(bool force_screen, bool force_tmux,
   if (term.is_tmux /* tmux always expose '4' in \x1b[c although terminal isn't
                       supported */
       || term.name == "wezterm" || term.name == "konsole" ||
-      term.name == "foot") {
+      term.name == "foot" || term.name == "windows_terminal") {
     term.support_sixel = true;
   }
 

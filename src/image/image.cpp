@@ -2,11 +2,16 @@
 
 #include <cstdint>
 #include <exception>
-#include <utility>
 
-#include "image/fn.hpp"
-#include "image/types.hpp"
+#include <Magick++.h>
+
 #include "settings/image.hpp"
+
+#include "image/protocol/iterm.hpp"
+#include "image/protocol/kitty.hpp"
+#include "image/types.hpp"
+#include "image/utils.hpp"
+
 #include "terminal/detection.hpp"
 #include "terminal/io.hpp"
 
@@ -60,23 +65,46 @@ void print_image(settings::Image &set, std::uint16_t &curr_x,
       modified_hehe(set.type);
     }
 
-    std::uint16_t cwidth = set.cell_width;
-    std::uint16_t cheight = set.cell_height;
-    auto tmp = internal::get_size_from_cell_size(set.path, cwidth, cheight);
-
-    curr_x += cwidth;
-    curr_y += cheight;
-
-    if (std::to_underlying(set.type) < std::to_underlying(ImageType::Chafa)) {
-      width = std::get<0>(tmp);
-      height = std::get<1>(tmp);
-    } else {
-      width = cwidth;
-      height = cheight;
+    Magick::Image image;
+    {
+      auto path = set.path.u8string();
+      std::string p(path.begin(), path.end());
+      if (set.type == ImageType::KittyPath) {
+        image.ping(p);
+      } else {
+        image.read(p);
+      }
     }
 
+    DetailedImageSize render_image_size{.cell_width = set.cell_width,
+                                        .cell_height = set.cell_height};
+
+    internal::get_size_from_cell_size(render_image_size, image.columns(),
+                                      image.rows());
+
+    curr_x += render_image_size.cell_width;
+    curr_y += render_image_size.cell_height;
+
+    fmt::println(stderr, "BE-RESIZE: {} xx {}c @ {} xx {}px",
+                 render_image_size.cell_width, render_image_size.cell_height,
+                 render_image_size.pixel_width, render_image_size.pixel_height);
+
+    if (set.type == ImageType::KittyPath) {
+      internal::kitty_path_print_image(set.path, render_image_size);
+      return;
+    }
+
+    image.resize(Magick::Geometry(render_image_size.pixel_width,
+                                  render_image_size.pixel_height));
+    render_image_size.pixel_width = image.columns();
+    render_image_size.pixel_height = image.rows();
+
+    fmt::println(stderr, "RESIZE: {} xx {}c @ {} xx {}px",
+                 render_image_size.cell_width, render_image_size.cell_height,
+                 render_image_size.pixel_width, render_image_size.pixel_height);
+
     // print ruler
-    constexpr int kSizeRuler = 0;
+    constexpr int kSizeRuler = 25;
     if constexpr (kSizeRuler != 0) {
       curr_x += 1;
       curr_y += 1;
@@ -104,23 +132,45 @@ void print_image(settings::Image &set, std::uint16_t &curr_x,
 
     switch (set.type) {
     case ImageType::Kitty:
-      image::internal::kitty_print_image(set.path, width, height, cwidth,
-                                         cheight);
+      image.magick("RGBA");
       break;
     case ImageType::Iterm:
-      image::internal::iterm_print_image(set.path, width, height);
-      break;
-    case ImageType::KittyPath:
-      image::internal::kitty_path_print_image(set.path, width, height);
+      image.magick("TIFF");
       break;
     case ImageType::Sixel:
-      image::internal::sixel_print_image(set.path, width, height);
+      image.magick("SIXEL");
       break;
     default:
-      terminal::print("huh? Calc: {}x{}", width, height);
+      return;
+    }
+
+    Magick::Blob blob;
+    image.write(&blob);
+
+    switch (set.type) {
+    case ImageType::Sixel: {
+
+      terminal::print(
+          "{}", std::string_view((const char *)blob.data(), blob.length()));
+
       terminal::flush();
       break;
+    case ImageType::Kitty: {
+      auto str = blob.base64();
+      internal::kitty_print_image(str, render_image_size);
+      break;
     }
+    case ImageType::Iterm: {
+      auto str = blob.base64();
+      internal::iterm_print_image(str, render_image_size);
+      break;
+    }
+    default:
+      break;
+    }
+    }
+
+    return;
   } catch (...) {
     err = std::current_exception();
     return;

@@ -26,8 +26,9 @@ set(PROJECT_SOURCES src/main.cpp
                     src/terminal/io.cpp
                     src/terminal/detection.cpp
                     src/image/image.cpp
-                    src/image/magick7.cpp
-                    src/image/fn.cpp
+                    src/image/utils.cpp
+                    src/image/protocol/kitty.cpp
+                    src/image/protocol/iterm.cpp
 )
 
 add_executable(${PROJECT_NAME} ${PROJECT_SOURCES})
@@ -57,8 +58,6 @@ if(NOT fmt_FOUND)
   FetchContent_MakeAvailable(fmt)
 endif()
 target_link_libraries(${PROJECT_NAME} PRIVATE fmt::fmt)
-
-option(USE_MAGICK "Magick as image backend (default)." ON)
 
 find_package(ImageMagick 7.0.0 REQUIRED COMPONENTS Magick++ MagickCore)
 target_link_libraries(${PROJECT_NAME} PRIVATE ImageMagick::Magick++ ImageMagick::MagickCore)
