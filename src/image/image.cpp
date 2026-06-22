@@ -7,10 +7,34 @@
 #include "image/fn.hpp"
 #include "image/types.hpp"
 #include "settings/image.hpp"
+#include "terminal/detection.hpp"
 #include "terminal/io.hpp"
 
 namespace image {
-void print_image(const settings::Image &set, std::uint16_t &curr_x,
+void modified_hehe(ImageType &set) {
+  auto const &term = terminal::get_terminal();
+
+  /* speific for wezterm */
+  if (term.name == "wezterm") {
+    set = ImageType::Iterm;
+    return;
+  }
+  if (term.support_kitty) {
+    set = std::getenv("INFOCH_IF_SUPPORTED_AUTO_KITTY_PATH_IMAGE") != nullptr
+              ? ImageType::KittyPath
+              : ImageType::Kitty;
+  } else if (term.support_iterm) {
+    set = ImageType::Iterm;
+  } else if (term.support_sixel) {
+    set = ImageType::Sixel;
+  } else {
+    set = std::getenv("INFOCH_IF_UNSUPPORTED_AUTO_DISABLE_IMAGE") != nullptr
+              ? ImageType::Disable
+              : ImageType::Chafa;
+  }
+}
+
+void print_image(settings::Image &set, std::uint16_t &curr_x,
                  std::uint16_t &curr_y, std::exception_ptr &err) noexcept {
   err = nullptr;
 
@@ -33,28 +57,26 @@ void print_image(const settings::Image &set, std::uint16_t &curr_x,
     size_t height = 0;
 
     if (set.type == ImageType::Auto) {
-      return;
+      modified_hehe(set.type);
     }
 
-    {
-      std::uint16_t cwidth = set.cell_width;
-      std::uint16_t cheight = set.cell_height;
-      auto tmp = internal::get_size_from_cell_size(set.path, cwidth, cheight);
+    std::uint16_t cwidth = set.cell_width;
+    std::uint16_t cheight = set.cell_height;
+    auto tmp = internal::get_size_from_cell_size(set.path, cwidth, cheight);
 
-      curr_x += cwidth;
-      curr_y += cheight;
+    curr_x += cwidth;
+    curr_y += cheight;
 
-      if (std::to_underlying(set.type) < std::to_underlying(ImageType::Chafa)) {
-        width = std::get<0>(tmp);
-        height = std::get<1>(tmp);
-      } else {
-        width = cwidth;
-        height = cheight;
-      }
+    if (std::to_underlying(set.type) < std::to_underlying(ImageType::Chafa)) {
+      width = std::get<0>(tmp);
+      height = std::get<1>(tmp);
+    } else {
+      width = cwidth;
+      height = cheight;
     }
 
     // print ruler
-    constexpr int kSizeRuler = 25;
+    constexpr int kSizeRuler = 0;
     if constexpr (kSizeRuler != 0) {
       curr_x += 1;
       curr_y += 1;
@@ -82,7 +104,8 @@ void print_image(const settings::Image &set, std::uint16_t &curr_x,
 
     switch (set.type) {
     case ImageType::Kitty:
-      image::internal::kitty_print_image(set.path, width, height);
+      image::internal::kitty_print_image(set.path, width, height, cwidth,
+                                         cheight);
       break;
     case ImageType::Iterm:
       image::internal::iterm_print_image(set.path, width, height);

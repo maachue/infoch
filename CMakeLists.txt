@@ -24,6 +24,7 @@ set(PROJECT_SOURCES src/main.cpp
                     src/terminal/term_query.cpp
                     src/terminal/term_size.cpp
                     src/terminal/io.cpp
+                    src/terminal/detection.cpp
                     src/image/image.cpp
                     src/image/magick7.cpp
                     src/image/fn.cpp
@@ -64,7 +65,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE ImageMagick::Magick++ ImageMagick:
 
 option(USE_JEMALLOC "Use jemalloc." "AUTO")
 
-if(WIN32 AND USE_JEMALLOC STREQUAL "AUTO" OR USE_JEMALLOC STREQUAL "FORCE")
+if(WIN32 AND (USE_JEMALLOC STREQUAL "AUTO" OR USE_JEMALLOC STREQUAL "FORCE"))
   message(STATUS "Sorry, I lazy to write find jemalloc on windows")
   set(USE_JEMALLOC "")
 endif()

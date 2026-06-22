@@ -8,7 +8,7 @@
 
 namespace image {
 
-void print_image(const settings::Image &set, std::uint16_t &curr_x,
+void print_image(settings::Image &set, std::uint16_t &curr_x,
                  std::uint16_t &curr_y, std::exception_ptr &err) noexcept;
 } // namespace image
 

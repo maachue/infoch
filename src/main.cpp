@@ -1,16 +1,16 @@
-#include <Magick++/Functions.h>
 #include <exception>
 
 #include <fmt/base.h>
 #include <stdexcept>
 #include <system_error>
 
-#include <Magick++.h>
+#include <Magick++/Functions.h>
 
 #include "cli.hpp"
 #include "image/image.hpp"
 #include "settings/image.hpp"
 #include "terminal/cbreak_mode.hpp"
+#include "terminal/detection.hpp"
 #include "terminal/io.hpp"
 #include "terminal/term_size.hpp"
 #include "terminal/tty.hpp"
@@ -65,6 +65,9 @@ int main(int argc, char **argv) {
 
       throw std::runtime_error("failed to fetch terminal size by unkown error");
     }
+
+    auto const term = terminal::get_terminal();
+    terminal::println("TERM:\n{}\nEND", term);
 
     std::uint16_t x = 0;
     std::uint16_t y = 0;

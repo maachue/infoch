@@ -14,7 +14,9 @@
 
 #include "base64.hpp"
 #include "image/magick7.hpp"
+#include "terminal/detection.hpp"
 #include "terminal/io.hpp"
+#include "terminal/passthrough.hpp"
 #include "terminal/term_size.hpp"
 
 namespace image::internal {
@@ -86,32 +88,64 @@ get_size_from_cell_size(const std::filesystem::path &path, std::uint16_t &width,
   return {pwidth, pheight};
 }
 
-void kitty_print_image(const std::filesystem::path &path, size_t width,
-                       size_t height) {
+void kitty_print_image(const std::filesystem::path &path, size_t pixel_width,
+                       size_t pixel_height, size_t cell_width,
+                       size_t cell_height) {
+
   constexpr size_t kKittyMaxBlob = 4096;
 
   auto blob = image::internal::magick_image(path.u8string(), "RGBA", true,
-                                            width, height);
+                                            pixel_width, pixel_height);
   auto str = blob.base64();
 
   size_t remaining_length = str.length();
   const auto *pos = str.data();
 
-  terminal::print("\x1b_Gf=32,a=T,s={},v={},q=2,m=1\x1b\\", width, height);
+  const auto &term = terminal::get_terminal();
 
-  size_t chunk = 4096;
-
-  while (remaining_length > 0) {
-    chunk = std::min(remaining_length, kKittyMaxBlob);
-
-    terminal::print("\x1b_Gm=1;{:.{}}\x1b\\", pos, chunk);
-    terminal::flush();
-
-    pos += chunk;
-    remaining_length -= chunk;
+  if (term.is_tmux) {
+    terminal::print(
+        "{}\x1b\x1b_Gf=32,a=T,i=31,s={},v={},c={},r={},U=1,q=2,m=1\x1b\x1b\\{}",
+        terminal::kTmuxPassthroughBegin, pixel_width, pixel_height, cell_width,
+        cell_height, terminal::kTmuxPassthroughEnd);
+  } else {
+    terminal::print("\x1b_Gf=32,a=T,s={},v={},q=2,m=1\x1b\\", pixel_width,
+                    pixel_height);
   }
 
-  terminal::print("\x1b_Gm=0\x1b\\");
+  size_t chunk = 4096;
+  if (term.is_tmux) {
+    while (remaining_length > 0) {
+      chunk = std::min(remaining_length, kKittyMaxBlob);
+
+      terminal::print("{}\x1b\x1b_Gm=1;{:.{}}\x1b\x1b\\{}",
+                      terminal::kTmuxPassthroughBegin, pos, chunk,
+                      terminal::kTmuxPassthroughEnd);
+      terminal::flush();
+
+      pos += chunk;
+      remaining_length -= chunk;
+    }
+  } else {
+    while (remaining_length > 0) {
+      chunk = std::min(remaining_length, kKittyMaxBlob);
+
+      terminal::print("\x1b_Gm=1;{:.{}}\x1b\\", pos, chunk);
+      terminal::flush();
+
+      pos += chunk;
+      remaining_length -= chunk;
+    }
+  }
+
+  if (term.is_tmux) {
+    terminal::print("{}\x1b\x1b_Gm=0\x1b\x1b\\{}\x1b\\",
+                    terminal::kTmuxPassthroughBegin,
+                    terminal::kTmuxPassthroughEnd);
+  } else {
+    terminal::print("\x1b_Gm=0\x1b\\");
+  }
+
   terminal::flush();
 }
 
