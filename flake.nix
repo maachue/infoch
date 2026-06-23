@@ -17,27 +17,33 @@
     in
     {
       inherit system;
-      devShells.${system}.default = pkgs.mkShell {
-        packages = with pkgs; [
-          git
-          clang-tools
-          gdb
-          lldb
-          neocmakelsp
+      devShells.${system}.default =
+        pkgs.mkShell.override
+          {
+            stdenv = pkgs.llvmPackages_22.stdenv;
+          }
+          {
+            packages = with pkgs; [
+              git
+              llvmPackages_22.clang-tools
+              gdb
+              lldb
+              include-what-you-use
+              neocmakelsp
 
-          cmake
-          ninja
-          clang
-          gcc
-          ccache
-          llvmPackages.bintools
-          mold
-          pkg-config
+              cmake
+              ninja
+              llvmPackages_22.clang
+              gcc
+              ccache
+              llvmPackages_22.bintools
+              mold
+              pkg-config
 
-          imagemagick
-          jemalloc
-          fmt
-        ];
-      };
+              imagemagick
+              jemalloc
+              fmt
+            ];
+          };
     };
 }

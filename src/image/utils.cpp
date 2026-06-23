@@ -2,11 +2,8 @@
 
 #include <cassert>
 #include <cmath>
-#include <cstdint>
 #include <cstdio>
 #include <stdexcept>
-#include <string>
-#include <tuple>
 
 #include <Magick++/Image.h>
 

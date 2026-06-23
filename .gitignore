@@ -1,6 +1,10 @@
 test.tmp
+
 build/
+out/
+
 .cache/
-compile_commands.json
 .bak
 .vscode/
+
+compile_commands.json
