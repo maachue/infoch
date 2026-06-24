@@ -2,6 +2,8 @@
 
 #include <cstdint>
 #include <exception>
+#include <filesystem>
+#include <stdexcept>
 
 #include <Magick++.h>
 
@@ -44,6 +46,37 @@ void print_image(settings::Image &set, std::uint16_t &curr_x,
   err = nullptr;
 
   try {
+    // path
+    if (set.path.empty()) {
+      throw std::runtime_error("(print_image) image path is empty");
+    }
+
+    {
+      auto fstat = std::filesystem::status(set.path);
+
+      if (!std::filesystem::exists(fstat)) {
+        throw std::runtime_error(fmt::format(
+#ifdef _WIN32
+            L
+#else
+            "(print_image) image path doesn't exist: {}"
+#endif
+            ,
+            set.path.c_str()));
+      }
+
+      if (std::filesystem::is_directory(fstat)) {
+        throw std::runtime_error(fmt::format(
+#ifdef _WIN32
+            L
+#else
+            "(print_image) image path is a directory: {}"
+#endif
+            ,
+            set.path.c_str()));
+      }
+    }
+
     if (set.type == ImageType::Disable) {
       return;
     }
