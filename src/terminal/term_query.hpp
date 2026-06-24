@@ -5,12 +5,12 @@
 #include <cerrno>
 #include <poll.h>
 #include <unistd.h>
-#error "fix later"
 #else
 #include <windows.h>
 #include <winternl.h>
 #endif
 
+#include <algorithm>
 #include <atomic>
 #include <charconv>
 #include <cstdint>
@@ -57,35 +57,40 @@ template <QueryBuffer Query, const char kEnd, QueryBuffer ErrorPattern = "",
 #ifndef _WIN32
   auto devtty = ftty.load(std::memory_order_relaxed);
   ssize_t n = 0;
-  n = write(devtty, query.data(), query.length());
+  n = write(devtty, Query.buf, Query.length());
   if (n == -1) {
     throw std::system_error(
         errno, std::generic_category(),
-        "(query_terminal__) failed to write escape sequence to /dev/tty");
+        fmt::format("({}) failed to write escape sequence {} to /dev/tty",
+                    kWhere.to_string_view(), ErrorPattern.to_string_view()));
   }
 
-  if (n != query.length()) {
-    throw std::runtime_error("(query_terminal__) failed to write escape "
-                             "sequence to /dev/tty: not enough bytes");
+  if (n != Query.length()) {
+    throw std::runtime_error(
+        fmt::format("({}) failed to write escape "
+                    "sequence {} to /dev/tty: not enough bytes",
+                    kWhere.to_string_view(), ErrorPattern.to_string_view()));
   }
 
   struct pollfd a{.fd = ftty, .events = POLLIN};
   n = poll(&a, 1, 100);
   if (n == -1) {
     throw std::system_error(errno, std::generic_category(),
-                            "(query_terminal__) failed to polling /dev/tty");
+                            fmt::format("({}) failed to polling /dev/tty",
+                                        kWhere.to_string_view()));
   }
   if (n == 0) {
-    throw std::runtime_error(
-        "(query_terminal__) failed to polling /dev/tty: timeout?");
+    throw std::runtime_error(fmt::format(
+        "({}) failed to polling /dev/tty: timeout?", kWhere.to_string_view()));
   }
 
   while (true) {
-    n = read(ftty, buffer + bytes_read, max_size - bytes_read);
+    n = read(ftty, buffer + bytes_read, N - bytes_read);
 
     if (n < 0) {
-      throw std::system_error(errno, std::generic_category(),
-                              "(query_terminal__) failed to read /dev/tty");
+      throw std::system_error(
+          errno, std::generic_category(),
+          fmt::format("({}) failed to read /dev/tty", kWhere.to_string_view()));
     }
 
     if (n == 0) {
@@ -94,13 +99,12 @@ template <QueryBuffer Query, const char kEnd, QueryBuffer ErrorPattern = "",
 
     bytes_read += n;
 
-    if (bytes_read >= max_size) {
-      bytes_read =
-          bytes_read - max_size == 0 ? max_size : bytes_read - max_size;
+    if (bytes_read >= N) {
+      bytes_read = bytes_read - N == 0 ? N : bytes_read - N;
       break;
     }
 
-    if (buffer[bytes_read - 1] == end) {
+    if (buffer[bytes_read - 1] == kEnd) {
       break;
     }
   }

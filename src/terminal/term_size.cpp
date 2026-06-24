@@ -22,52 +22,30 @@ const std::error_category &termfetchsize_category() noexcept {
 
 void fetch_terminal_size() {
 #ifndef _WIN32
-  err.clear();
   struct winsize winsize{};
 
   if (ioctl(ftty.load(std::memory_order_relaxed), TIOCGWINSZ, &winsize) < 0) {
-    err = std::error_code(errno, std::generic_category());
-    return -1;
+    throw std::system_error(errno, std::generic_category(),
+                            "(fetch_terminal_size) something went wrong");
   }
 
   if (winsize.ws_col == 0 || winsize.ws_row == 0) {
-    auto errn = query_terminal(err, "\x1b[18t", 2, "\x1b[8;%hu;%hut",
-                               &winsize.ws_row, &winsize.ws_col);
-
-    if (errn != 0) {
-      if (err != QueryTerminalErrCode::CannotParseInput) {
-        return -1;
-      }
-
-      err = TermFetchSizeErrCode::CannotQueryPixelSize;
-      return -1;
-    }
+    query_terminal_termsize_cell(termsize.cell_width, termsize.cell_height);
   }
 
   if (winsize.ws_xpixel == 0 || winsize.ws_ypixel == 0) {
-    auto errn = query_terminal(err, "\x1b[14t", 2, "\x1b[4;%hu;%hut",
-                               &winsize.ws_ypixel, &winsize.ws_xpixel);
-
-    if (errn != 0) {
-      if (err != QueryTerminalErrCode::CannotParseInput) {
-        return -1;
-      }
-
-      err = TermFetchSizeErrCode::CannotQueryPixelSize;
-      return -1;
-    }
+    query_terminal_termsize_pixel(termsize.pixel_width, termsize.pixel_height);
   }
 
   if (winsize.ws_col == 0 || winsize.ws_row == 0) {
-    err = TermFetchSizeErrCode::CannotQueryCellSize;
-    return -1;
+    throw std::system_error(TermFetchSizeErrCode::CannotQueryCellSize,
+                            "(fetch_terminal_size) cannot get terminal size");
   }
 
   termsize = TermSize{.cell_width = winsize.ws_col,
                       .cell_height = winsize.ws_row,
                       .pixel_width = winsize.ws_xpixel,
                       .pixel_height = winsize.ws_ypixel};
-  return 0;
 #else
   auto handle = termout_handle.load(std::memory_order_relaxed);
   CONSOLE_SCREEN_BUFFER_INFO buffsize{};
@@ -98,8 +76,8 @@ void fetch_terminal_size() {
   }
 
   if (termsize.is_zero()) {
-    throw std::system_error(
-        std::error_code(TermFetchSizeErrCode::CannotQueryCellSize));
+    throw std::system_error(TermFetchSizeErrCode::CannotQueryCellSize,
+                            "(fetch_terminal_size) cannot get terminal size");
   }
 #endif
 }
