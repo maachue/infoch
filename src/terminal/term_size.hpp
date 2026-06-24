@@ -50,7 +50,7 @@ inline std::error_code make_error_code(TermFetchSizeErrCode e) noexcept {
   return {static_cast<int>(e), termfetchsize_category()};
 }
 
-int fetch_terminal_size(std::error_code &err) noexcept;
+void fetch_terminal_size();
 } // namespace terminal
 
 namespace std {

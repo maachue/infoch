@@ -1,51 +1,228 @@
 #ifndef INFOCH_TERMINAL_TERM_QUERY_H
 #define INFOCH_TERMINAL_TERM_QUERY_H
 
-#include <string>
+#ifndef _WIN32
+#include <cerrno>
+#include <poll.h>
+#include <unistd.h>
+#error "fix later"
+#else
+#include <windows.h>
+#include <winternl.h>
+#endif
+
+#include <atomic>
+#include <charconv>
+#include <cstdint>
+#include <ranges>
 #include <system_error>
+#include <vector>
+
+#include <fmt/format.h>
+
+#include "terminal/cbreak_mode.hpp"
+#include "terminal/tty.hpp"
 
 namespace terminal {
-enum class QueryTerminalErrCode {
-  CannotWriteToTTY,
-  CannotPollingTTY,
-  CannotParseInput,
-};
+template <size_t N> struct QueryBuffer {
+  static constexpr size_t actual_size = (N > 0) ? (N - 1) : 0;
+  char buf[actual_size > 0 ? actual_size : 1];
 
-class QueryTerminalErrCategory : public std::error_category {
-public:
-  const char *name() const noexcept override { return "QueryTerminalErr"; }
-
-  std::string message(int ev) const noexcept override {
-    switch (static_cast<QueryTerminalErrCode>(ev)) {
-      using enum QueryTerminalErrCode;
-
-    case CannotWriteToTTY:
-      return "Cannot write to terminal";
-    case CannotPollingTTY:
-      return "Cannot poll terminal";
-    case CannotParseInput:
-      return "Cannot parse terminal input";
-    default:
-      return "(QueryTerminalErr) unkown error";
+  constexpr QueryBuffer(const char (&buff)[N]) {
+    if constexpr (actual_size > 0) {
+      std::copy_n(buff, actual_size, buf);
+    } else {
+      buf[0] = '\0';
     }
+  }
+
+  [[nodiscard]] constexpr size_t size() const { return actual_size; }
+  [[nodiscard]] constexpr size_t length() const { return actual_size; }
+
+  [[nodiscard]] constexpr std::string_view to_string_view() const {
+    return {buf, actual_size};
   }
 };
 
-QueryTerminalErrCategory const &queryterminalerr_category() noexcept;
+template <QueryBuffer Query, const char kEnd, QueryBuffer ErrorPattern = "",
+          QueryBuffer kWhere = "query_terminal__", size_t N>
+[[nodiscard]] size_t query_terminal_i(char (&buffer)[N]) {
+  size_t bytes_read = 0;
 
-inline std::error_code make_error_code(QueryTerminalErrCode e) noexcept {
-  return {static_cast<int>(e), queryterminalerr_category()};
+  if (!is_init.load(std::memory_order_relaxed)) {
+    throw std::runtime_error(fmt::format("({}) terminal isn't in cbreak mode!",
+                                         kWhere.to_string_view()));
+  }
+
+#ifndef _WIN32
+  auto devtty = ftty.load(std::memory_order_relaxed);
+  ssize_t n = 0;
+  n = write(devtty, query.data(), query.length());
+  if (n == -1) {
+    throw std::system_error(
+        errno, std::generic_category(),
+        "(query_terminal__) failed to write escape sequence to /dev/tty");
+  }
+
+  if (n != query.length()) {
+    throw std::runtime_error("(query_terminal__) failed to write escape "
+                             "sequence to /dev/tty: not enough bytes");
+  }
+
+  struct pollfd a{.fd = ftty, .events = POLLIN};
+  n = poll(&a, 1, 100);
+  if (n == -1) {
+    throw std::system_error(errno, std::generic_category(),
+                            "(query_terminal__) failed to polling /dev/tty");
+  }
+  if (n == 0) {
+    throw std::runtime_error(
+        "(query_terminal__) failed to polling /dev/tty: timeout?");
+  }
+
+  while (true) {
+    n = read(ftty, buffer + bytes_read, max_size - bytes_read);
+
+    if (n < 0) {
+      throw std::system_error(errno, std::generic_category(),
+                              "(query_terminal__) failed to read /dev/tty");
+    }
+
+    if (n == 0) {
+      break;
+    }
+
+    bytes_read += n;
+
+    if (bytes_read >= max_size) {
+      bytes_read =
+          bytes_read - max_size == 0 ? max_size : bytes_read - max_size;
+      break;
+    }
+
+    if (buffer[bytes_read - 1] == end) {
+      break;
+    }
+  }
+#else
+  auto *htermout = termout_handle.load(std::memory_order_relaxed);
+  auto *htermin = termin_handle.load(std::memory_order_relaxed);
+
+  DWORD n = 0;
+  if (WriteFile(htermout, Query.buf, Query.length(), &n, nullptr) == 0) {
+    throw std::system_error(
+        static_cast<int>(GetLastError()), std::system_category(),
+        fmt::format("({}) failed to write escape "
+                    "sequence {} to terminal output handle",
+                    kWhere.to_string_view(), ErrorPattern.to_string_view()));
+  }
+
+  if (n != Query.length()) {
+    throw std::runtime_error(fmt::format(
+        "({}) failed to write escape sequence {} to terminal output "
+        "handle: not enough bytes",
+        kWhere.to_string_view(), ErrorPattern.to_string_view()));
+  }
+
+  LARGE_INTEGER tmp{.QuadPart = (int64_t)100 * -10000};
+  while (true) {
+    if (NtWaitForSingleObject(htermin, FALSE, &tmp) != STATUS_WAIT_0) {
+      throw std::runtime_error(fmt::format(
+          "({}) failed to polling terminal input", kWhere.to_string_view()));
+    }
+
+    INPUT_RECORD record{};
+    if (PeekConsoleInputW(htermin, &record, 1, &n) == 0) {
+      break;
+    }
+
+    if (record.EventType == KEY_EVENT &&
+        record.Event.KeyEvent.uChar.UnicodeChar != L'\r' &&
+        record.Event.KeyEvent.uChar.UnicodeChar != L'\n') {
+      break;
+    }
+
+    ReadConsoleInputW(htermin, &record, 1, &n);
+  }
+
+  while (true) {
+    if (ReadFile(htermin, buffer + bytes_read, N - bytes_read, &n, nullptr) ==
+        0) {
+      throw std::system_error(
+          static_cast<int>(GetLastError()), std::system_category(),
+          fmt::format("({}) failed to read terminal input handle",
+                      kWhere.to_string_view()));
+    }
+
+    if (n == 0) {
+      break;
+    }
+
+    bytes_read += n;
+
+    if (bytes_read >= N) {
+      bytes_read = bytes_read - N == 0 ? N : bytes_read - N;
+      break;
+    }
+
+    if (buffer[bytes_read - 1] == kEnd) {
+      break;
+    }
+  }
+#endif
+
+  return bytes_read;
 }
 
-/// NOTE: This API from: `ffGetTerminalRespone` from
-/// [fastfetch](https://github.com/fastfetch-cli/fastfetch/blob/dev/src/common/io.h)
-int query_terminal(std::error_code &err, std::string_view query, int nparams,
-                   const char *pattern, ...);
-} // namespace terminal
+template <size_t N, QueryBuffer Query, QueryBuffer Begin, const char End,
+          QueryBuffer ErrorPattern = "",
+          QueryBuffer Where = "query_terminal_ii">
+std::vector<std::uint16_t> query_terminal_ii() {
+  char buffer[N];
 
-namespace std {
-template <>
-struct is_error_code_enum<terminal::QueryTerminalErrCode> : true_type {};
-} // namespace std
+  size_t bytes_read =
+      query_terminal_i<Query, End, ErrorPattern, Where, N>(buffer);
+
+  std::string_view buff(buffer, bytes_read);
+  std::vector<std::uint16_t> result;
+
+  size_t start_pos = buff.find(Begin.to_string_view());
+  if (start_pos == std::string_view::npos) {
+    throw std::runtime_error(
+        fmt::format("({}) cannot find start escape sequence from terminal "
+                    "replied",
+                    Where.to_string_view()));
+  }
+
+  start_pos += Begin.size();
+
+  size_t end_pos = buff.find(End, start_pos);
+  if (end_pos == std::string_view::npos) {
+    throw std::runtime_error(fmt::format(
+        "({}) cannot find end of escape sequence from terminal replied: end={}",
+        Where.to_string_view(), End));
+  }
+
+  std::string_view token{};
+  for (auto &&subrange : buff | std::ranges::views::split(';')) {
+    std::string_view token(subrange.begin(), subrange.end());
+
+    if (token.empty()) {
+      result.emplace_back(-1);
+    }
+
+    std::uint16_t val = 0;
+
+    auto [ptr, ec] =
+        std::from_chars(token.data(), token.data() + token.size(), val);
+
+    if (ec == std::errc{}) {
+      result.emplace_back(val);
+    }
+  }
+
+  return result;
+}
+} // namespace terminal
 
 #endif

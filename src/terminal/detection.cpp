@@ -1,154 +1,27 @@
+#define _CRT_SECURE_NO_WARNINGS
+
 #include "detection.hpp"
 
-#ifndef _WIN32
-#include <cerrno>
-#include <poll.h>
-#include <unistd.h>
-#else
-#include <windows.h>
-#include <winternl.h>
-#endif
-
-#include <atomic>
 #include <charconv>
+#include <cstdint>
+#include <cstdlib>
+#include <cstring>
 #include <ranges>
 #include <stdexcept>
 #include <system_error>
 
-#include <cstdlib>
-#include <cstring>
-
 #include <fmt/base.h>
 
-#include "terminal/tty.hpp"
-
-// cross-platform between windows and Unix
-#define WEZTERM_DETECTION                                                      \
-  std::getenv("WEZTERM_CONFIG_DIR") || std::getenv("WEZTERM_EXECUTABLE") ||    \
-      std::getenv("WEZTERM_PLANE") || std::getenv("WEZTERM_CONFIG_FILE") ||    \
-      std::getenv("WEZTERM_EXECUTABLE_DIR") ||                                 \
-      std::getenv("WEZTERM_UNIX_SOCKET")
+#include "terminal/term_query.hpp"
 
 namespace terminal {
 bool is_support_sixel() {
   constexpr std::string_view kRequestDA = "\x1b[c";
 
   char buffer[1024];
-  size_t bytes_read = 0;
-
-#ifndef _WIN32
-  auto devtty = ftty.load(std::memory_order_relaxed);
-  ssize_t n = 0;
-  n = write(devtty, kRequestDA.data(), kRequestDA.length());
-  if (n == -1) {
-    throw std::system_error(
-        errno, std::generic_category(),
-        "(is_support_sixel) failed to write escape sequence DA (Primary Device "
-        "Attribute) to /dev/tty");
-  }
-
-  if (n != kRequestDA.length()) {
-    throw std::runtime_error(
-        "(is_support_sixel) failed to write escape sequence DA (Primary Device "
-        "Attribute) to /dev/tty: not enough bytes");
-  }
-
-  struct pollfd a{.fd = ftty, .events = POLLIN};
-  n = poll(&a, 1, 100);
-  if (n == -1) {
-    throw std::system_error(errno, std::generic_category(),
-                            "(is_support_sixel) failed to polling /dev/tty");
-  }
-  if (n == 0) {
-    throw std::runtime_error(
-        "(is_support_sixel) failed to polling /dev/tty: timeout?");
-  }
-
-  while (true) {
-    n = read(ftty, buffer + bytes_read, sizeof(buffer) - bytes_read);
-
-    if (n < 0) {
-      throw std::system_error(errno, std::generic_category(),
-                              "(is_support_sixel) failed to read /dev/tty");
-    }
-
-    if (n == 0) {
-      break;
-    }
-
-    bytes_read += n;
-
-    if (bytes_read >= sizeof(buffer) - bytes_read) {
-      break;
-    }
-
-    if (buffer[bytes_read - 1] == 'c') {
-      break;
-    }
-  }
-#else
-  auto *htermout = termout_handle.load(std::memory_order_relaxed);
-  auto *htermin = termin_handle.load(std::memory_order_relaxed);
-
-  DWORD n = 0;
-  if (WriteFile(htermout, kRequestDA.data(), kRequestDA.length(), &n,
-                nullptr) == 0) {
-    throw std::system_error(
-        static_cast<int>(GetLastError()), std::system_category(),
-        "(is_support_sixel) failed to write escape sequence DA (Primary Device "
-        "Attribute) to terminal output handle");
-  }
-
-  if (n != kRequestDA.length()) {
-    throw std::runtime_error(
-        "(is_support_sixel) failed to write escape sequence DA (Primary Device "
-        "Attribute) to terminal output handle: not enough bytes");
-  }
-
-  LARGE_INTEGER tmp{.QuadPart = (int64_t)100 * -10000};
-  while (true) {
-    if (NtWaitForSingleObject(htermin, FALSE, &tmp) != STATUS_WAIT_0) {
-      throw std::runtime_error(
-          "(is_support_sixel) failed to polling terminal input");
-    }
-
-    INPUT_RECORD record{};
-    if (PeekConsoleInputW(htermin, &record, 1, &n) == 0) {
-      break;
-    }
-
-    if (record.EventType == KEY_EVENT &&
-        record.Event.KeyEvent.uChar.UnicodeChar != L'\r' &&
-        record.Event.KeyEvent.uChar.UnicodeChar != L'\n') {
-      break;
-    }
-
-    ReadConsoleInputW(htermin, &record, 1, &n);
-  }
-
-  while (true) {
-    if (ReadFile(htermin, buffer + bytes_read, sizeof(buffer) - bytes_read, &n,
-                 nullptr) == 0) {
-      throw std::system_error(
-          static_cast<int>(GetLastError()), std::system_category(),
-          "(is_support_sixel) failed to read terminal input handle");
-    }
-
-    if (n == 0) {
-      break;
-    }
-
-    bytes_read += n;
-
-    if (bytes_read >= sizeof(buffer) - bytes_read) {
-      break;
-    }
-
-    if (buffer[bytes_read - 1] == 'c') {
-      break;
-    }
-  }
-#endif
+  size_t bytes_read =
+      query_terminal_i<"\x1b[c", 'c', "DA (Primary Device Attribute)",
+                       "is_support_sixel">(buffer);
 
   std::string_view buff(buffer, bytes_read);
   if (buff.empty()) {
@@ -256,7 +129,12 @@ const Terminal &get_terminal(bool force_screen, bool force_tmux,
            std::getenv("GHOSTTY_RESOURCES_DIR") ||
            std::getenv("GHOSTTY_SHELL_FEATURES")) {
     term.name = "ghostty";
-  } else if (WEZTERM_DETECTION) {
+  } else if (std::getenv("WEZTERM_CONFIG_DIR") ||
+             std::getenv("WEZTERM_EXECUTABLE") ||
+             std::getenv("WEZTERM_PLANE") ||
+             std::getenv("WEZTERM_CONFIG_FILE") ||
+             std::getenv("WEZTERM_EXECUTABLE_DIR") ||
+             std::getenv("WEZTERM_UNIX_SOCKET")) {
     term.name = "wezterm";
   }
 #if defined(__linux__) || defined(_WIN32)

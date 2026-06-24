@@ -1,8 +1,6 @@
 #include <exception>
 
 #include <fmt/base.h>
-#include <stdexcept>
-#include <system_error>
 
 #include <Magick++/Functions.h>
 
@@ -47,24 +45,15 @@ int main(int argc, char **argv) {
 
     struct OptinalConfigureTerm {
       OptinalConfigureTerm() {
-        terminal::print("\x1b[?7l\x1b[>1u");
+        terminal::print("\x1b[?7l");
         terminal::flush();
       }
       ~OptinalConfigureTerm() {
-        terminal::print("\x1b[?7h\x1b[<1u");
+        terminal::print("\x1b[?7h");
       } // this will flush when BuffLifetime::~BuffLifetime() call
     } opt_config_do_not_touch{};
 
-    std::error_code err{};
-    auto d = terminal::fetch_terminal_size(err);
-
-    if (d != 0) {
-      if (err) {
-        throw std::system_error(err, "failed to fetch terminal size");
-      }
-
-      throw std::runtime_error("failed to fetch terminal size by unkown error");
-    }
+    terminal::fetch_terminal_size();
 
     auto const term = terminal::get_terminal();
     terminal::println("TERM:\n{}\nEND", term);

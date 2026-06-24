@@ -21,7 +21,7 @@ set(PROJECT_SOURCES src/main.cpp
                     src/cli.cpp
                     src/terminal/tty.cpp
                     src/terminal/cbreak_mode.cpp
-                    src/terminal/term_query.cpp
+                    src/terminal/term_size_query.cpp
                     src/terminal/term_size.cpp
                     src/terminal/io.cpp
                     src/terminal/detection.cpp
