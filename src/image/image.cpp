@@ -1,4 +1,10 @@
+#define _CRT_SECURE_NO_WARNINGS
+
 #include "image.hpp"
+
+#ifdef _WIN32
+#include <windows.h>
+#endif
 
 #include <cstdint>
 #include <exception>
@@ -55,25 +61,27 @@ void print_image(settings::Image &set, std::uint16_t &curr_x,
       auto fstat = std::filesystem::status(set.path);
 
       if (!std::filesystem::exists(fstat)) {
-        throw std::runtime_error(fmt::format(
+        throw std::runtime_error(
+            fmt::format("(print_image) image path doesn't exist: {}",
 #ifdef _WIN32
-            L
+                        reinterpret_cast<const char *>(
+                            set.path.u8string()
+                                .data()) // .c_str() on windows returned wchar *
 #else
-            "(print_image) image path doesn't exist: {}"
+                        set.path.c_str()
 #endif
-            ,
-            set.path.c_str()));
+                        ));
       }
 
       if (std::filesystem::is_directory(fstat)) {
         throw std::runtime_error(fmt::format(
+            "(print_image) image path is a directory: {}",
 #ifdef _WIN32
-            L
+            reinterpret_cast<const char *>(set.path.u8string().data())
 #else
-            "(print_image) image path is a directory: {}"
+            set.path.c_str()
 #endif
-            ,
-            set.path.c_str()));
+                ));
       }
     }
 
