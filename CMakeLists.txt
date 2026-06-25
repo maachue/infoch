@@ -62,43 +62,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE fmt::fmt)
 find_package(ImageMagick 7.0.0 REQUIRED COMPONENTS Magick++ MagickCore)
 target_link_libraries(${PROJECT_NAME} PRIVATE ImageMagick::Magick++ ImageMagick::MagickCore)
 
-find_package(Lua 5.1 REQUIRED)
-if(Lua_FOUND AND NOT TARGET Lua::Lua)
-  add_library(Lua::Lua INTERFACE IMPORTED)
-  set_target_properties(
-    Lua::Lua
-    PROPERTIES
-      INTERFACE_INCLUDE_DIRECTORIES "${LUA_INCLUDE_DIR}"
-      INTERFACE_LINK_LIBRARIES "${LUA_LIBRARIES}"
-  )
-endif()
+find_package(Lua 5.0 REQUIRED)
 
-target_link_libraries(${PROJECT_NAME} PRIVATE Lua::Lua)
-
-option(USE_JEMALLOC "Use jemalloc." "AUTO")
-
-if(WIN32 AND (USE_JEMALLOC STREQUAL "AUTO" OR USE_JEMALLOC STREQUAL "FORCE"))
-  message(STATUS "Sorry, I lazy to write find jemalloc on windows")
-  set(USE_JEMALLOC "")
-endif()
-
-if(USE_JEMALLOC STREQUAL "AUTO")
-  pkg_check_modules(JEMALLOC QUIET jemalloc)
-
-  if(JEMALLOC_FOUND)
-    message(STATUS "Found jemalloc")
-
-    target_include_directories(${PROJECT_NAME} PRIVATE ${JEMALLOC_INCLUDE_DIRS})
-    target_link_libraries(${PROJECT_NAME} PRIVATE ${JEMALLOC_LIBRARIES})
-  else()
-    message(STATUS "Can not found jemalloc, use default from lib C/C++")
-  endif()
-elseif(USE_JEMALLOC STREQUAL "FORCE")
-  message(STATUS "Enforce use jemalloc")
-  pkg_check_modules(JEMALLOC REQUIRED jemalloc)
-
-  target_include_directories(${PROJECT_NAME} PRIVATE ${JEMALLOC_INCLUDE_DIRS})
-  target_link_libraries(${PROJECT_NAME} PRIVATE ${JEMALLOC_LIBRARIES})
-else()
-  message(STATUS "Allocator: default on your lib C/C++")
-endif()
+target_include_directories(${PROJECT_NAME} PRIVATE ${LUA_INCLUDE_DIR})
+target_link_libraries(${PROJECT_NAME} PRIVATE ${LUA_LIBRARIES})

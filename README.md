@@ -7,8 +7,11 @@
 
 ## Libraries
 
+This repository requires libraries below:
+
+- [{fmt}](https://github.com/fmtlib/fmt) - The MIT License
 - [ImageMagick](https://github.com/imagemagick/imagemagick) - 7.0.0 or later, requires Magick++ components, ImageMagick License
-- [Lua](https://www.lua.org/) - 5.1 or later, The MIT License
+- [Lua](https://www.lua.org/) - 5.0 or later, The MIT License
 
 ## Credits
 
@@ -16,9 +19,9 @@
 detailed implementation of image protocol in action, and UX/UI (CLI arguments)
 - [chafa](https://github.com/hpjansson/chafa) - Thanks to hpjansson, and contributors to know detailed implementation of image protocol in action
 
-On some **old commit** contained [fastfetch](https://github.com/fastfetch-cli/fastfetch)'s code
+On some **old commit** contained [fastfetch](https://github.com/fastfetch-cli/fastfetch)'s code.
 
-Currently, project doesn't contain any code from fastfetch or chafa.
+Currently, repository doesn't contain any code from fastfetch or chafa.
 
 ## License
 

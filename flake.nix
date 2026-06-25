@@ -41,6 +41,7 @@
               pkg-config
 
               imagemagick
+              lua
               jemalloc
               fmt
             ];
