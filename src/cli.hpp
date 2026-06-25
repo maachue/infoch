@@ -1,7 +1,6 @@
 #ifndef INFOCH_CLI_H
 #define INFOCH_CLI_H
 
-#include <expected>
 #include <filesystem>
 
 #include "image/types.hpp"
@@ -25,7 +24,7 @@ struct Cli {
   std::uint16_t image_padding_top;
 };
 
-std::expected<Cli, int> cli_parse(int argc, char **argv) noexcept;
+Cli cli_parse(int argc, char **argv) noexcept;
 } // namespace cli
 
 #endif

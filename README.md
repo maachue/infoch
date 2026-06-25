@@ -7,7 +7,8 @@
 
 ## Libraries
 
-Currently, this project requires [ImageMagick](https://github.com/imagemagick/imagemagick), especially Magick++
+- [ImageMagick](https://github.com/imagemagick/imagemagick) - 7.0.0 or later, requires Magick++ components, ImageMagick License
+- [Lua](https://www.lua.org/) - 5.1 or later, The MIT License
 
 ## Credits
 

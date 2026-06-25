@@ -4,6 +4,10 @@
 
 #include <Magick++/Functions.h>
 
+extern "C" {
+#include <lua.h>
+}
+
 #include "cli.hpp"
 #include "image/image.hpp"
 #include "settings/image.hpp"
@@ -14,16 +18,7 @@
 #include "terminal/tty.hpp"
 
 int main(int argc, char **argv) {
-  cli::Cli cli{};
-  {
-    auto res = cli::cli_parse(argc, argv);
-
-    if (!res) {
-      return res.error();
-    }
-
-    cli = res.value();
-  }
+  cli::Cli cli = cli::cli_parse(argc, argv);
 
   try {
     Magick::InitializeMagick(*argv);
@@ -80,5 +75,6 @@ int main(int argc, char **argv) {
     terminal::println("\n\n\n{}x{}", x, y);
   } catch (std::exception const &err) {
     fmt::println(stderr, "\x1b[31;1merror:\x1b[0m {}.", err.what());
+    return 1;
   }
 }

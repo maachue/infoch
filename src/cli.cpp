@@ -4,13 +4,16 @@
 #include <cassert>
 #include <cstdlib>
 #include <exception>
-#include <expected>
 #include <filesystem>
 #include <ranges>
 #include <stdexcept>
 #include <string_view>
 #include <system_error>
 #include <vector>
+
+extern "C" {
+#include <lua.h>
+}
 
 #include <fmt/base.h>
 #include <fmt/format.h>
@@ -53,7 +56,7 @@ void help_msg() {
 void version_msg() {
   fmt::print("infoch {}\n"
              "Lua version: {}\n",
-             "0.1.0", "N/A");
+             "0.1.0", LUA_VERSION);
 }
 
 constexpr std::array kCliArgs = {
@@ -143,7 +146,7 @@ constexpr std::array kCliArgs = {
     })};
 
 // NOLINTBEGIN(readability-function-cognitive-complexity)
-std::expected<Cli, int> cli_parse(int argc, char **argv) noexcept {
+Cli cli_parse(int argc, char **argv) noexcept {
   // NOLINTEND(readability-function-cognitive-complexity)
   try {
     Cli cli{};
@@ -160,12 +163,14 @@ std::expected<Cli, int> cli_parse(int argc, char **argv) noexcept {
       if (arg == "--help" || arg == "-h") {
         usage();
         help_msg();
-        return std::unexpected{0};
+        vec.~vector();
+        std::exit(0);
       }
 
       if (arg == "-v" || arg == "--version") {
         version_msg();
-        return std::unexpected{0};
+        vec.~vector();
+        std::exit(0);
       }
     }
 
@@ -220,7 +225,7 @@ std::expected<Cli, int> cli_parse(int argc, char **argv) noexcept {
     return cli;
   } catch (std::exception const &err) {
     fmt::println("\x1b[31;1merror\x1b[0m: {}.", err.what());
-    return std::unexpected{1};
+    std::exit(1);
   }
 }
 } // namespace cli
