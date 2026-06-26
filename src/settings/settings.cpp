@@ -142,7 +142,7 @@ void run_config(std::filesystem::path const &path, Settings &set) {
       throw std::runtime_error(fmt::format(
           "(run_config) failed to run config: config path is empty: {}",
 #ifdef _WIN32
-          reinterpret_cast<const char *>(config.u8string().c_str())
+          reinterpret_cast<const char *>(path.u8string().c_str())
 #else
           path.c_str()
 #endif
@@ -154,7 +154,7 @@ void run_config(std::filesystem::path const &path, Settings &set) {
         throw std::runtime_error(fmt::format(
             "(run_config) failed to run config: config path doesn't exist: {}",
 #ifdef _WIN32
-            reinterpret_cast<const char *>(config.u8string().c_str())
+            reinterpret_cast<const char *>(path.u8string().c_str())
 #else
             path.c_str()
 #endif
@@ -165,7 +165,7 @@ void run_config(std::filesystem::path const &path, Settings &set) {
         throw std::runtime_error(fmt::format(
             "(run_config) failed to run config: config path is a directory: {}",
 #ifdef _WIN32
-            reinterpret_cast<const char *>(config.u8string().c_str())
+            reinterpret_cast<const char *>(path.u8string().c_str())
 #else
             path.c_str()
 #endif
@@ -178,7 +178,13 @@ void run_config(std::filesystem::path const &path, Settings &set) {
   luaL_setfuncs(lua.L, g_api_funcs, 0);
   lua_pop(lua.L, 1);
 
-  if (luaL_dofile(lua.L, path.c_str()) != LUA_OK) {
+  if (luaL_dofile(lua.L,
+#ifndef _WIN32
+                  path.c_str()
+#else
+                  reinterpret_cast<const char *>(path.u8string().c_str())
+#endif
+                      ) != LUA_OK) {
     throw std::runtime_error(
         fmt::format("(run_config) failed to run config: Lua error: {}",
                     lua_tostring(lua.L, -1)));
