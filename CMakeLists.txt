@@ -29,6 +29,9 @@ set(PROJECT_SOURCES src/main.cpp
                     src/image/utils.cpp
                     src/image/protocol/kitty.cpp
                     src/image/protocol/iterm.cpp
+                    src/config/conf.cpp
+                    src/cli_override.cpp
+                    src/settings/settings.cpp
 )
 
 add_executable(${PROJECT_NAME} ${PROJECT_SOURCES})
@@ -62,7 +65,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE fmt::fmt)
 find_package(ImageMagick 7.0.0 REQUIRED COMPONENTS Magick++ MagickCore)
 target_link_libraries(${PROJECT_NAME} PRIVATE ImageMagick::Magick++ ImageMagick::MagickCore)
 
-find_package(Lua 5.0 REQUIRED)
+find_package(Lua 5.2 REQUIRED)
 
 target_include_directories(${PROJECT_NAME} PRIVATE ${LUA_INCLUDE_DIR})
 target_link_libraries(${PROJECT_NAME} PRIVATE ${LUA_LIBRARIES})

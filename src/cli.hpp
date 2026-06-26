@@ -2,6 +2,7 @@
 #define INFOCH_CLI_H
 
 #include <filesystem>
+#include <optional>
 
 #include "image/types.hpp"
 
@@ -15,7 +16,7 @@ struct Cli {
 
   // image
   std::filesystem::path image;
-  image::ImageType image_type;
+  std::optional<image::ImageType> image_type;
 
   std::uint16_t image_width;
   std::uint16_t image_height;

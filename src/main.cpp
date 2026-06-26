@@ -1,3 +1,4 @@
+#include <climits>
 #include <exception>
 
 #include <fmt/base.h>
@@ -9,8 +10,10 @@ extern "C" {
 }
 
 #include "cli.hpp"
+#include "cli_override.hpp"
+#include "config/conf.hpp"
 #include "image/image.hpp"
-#include "settings/image.hpp"
+#include "settings/settings.hpp"
 #include "terminal/cbreak_mode.hpp"
 #include "terminal/detection.hpp"
 #include "terminal/io.hpp"
@@ -21,6 +24,12 @@ int main(int argc, char **argv) {
   cli::Cli cli = cli::cli_parse(argc, argv);
 
   try {
+    config::run_config(cli.config);
+
+    auto set = settings::set_from_conf(config::g_image, config::g_text);
+
+    cli::cli_override(set, cli);
+
     Magick::InitializeMagick(*argv);
 
     struct DevTTYLifetime {
@@ -56,15 +65,8 @@ int main(int argc, char **argv) {
     std::uint16_t x = 0;
     std::uint16_t y = 0;
 
-    settings::Image image_set{.path = cli.image,
-                              .type = cli.image_type,
-                              .cell_width = cli.image_width,
-                              .cell_height = cli.image_height,
-                              .padding_width = cli.image_padding_left,
-                              .padding_height = cli.image_padding_top};
-
     std::exception_ptr ptr = nullptr;
-    image::print_image(image_set, x, y, ptr);
+    image::print_image(set.image, x, y, ptr);
     if (ptr) {
       std::rethrow_exception(ptr);
     }
@@ -73,6 +75,8 @@ int main(int argc, char **argv) {
     terminal::flush();
 
     terminal::println("\n\n\n{}x{}", x, y);
+
+    terminal::println("\n\n\n\n\n\n\n{}", set.text_str);
   } catch (std::exception const &err) {
     fmt::println(stderr, "\x1b[31;1merror:\x1b[0m {}.", err.what());
     return 1;

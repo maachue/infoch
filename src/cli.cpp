@@ -75,7 +75,8 @@ constexpr std::array kCliArgs = {
            }),
     CliOpt("image-type", "T", true,
            [](Cli &cli, std::string_view str) {
-             if (str == "none" || str == "None") {
+             if (str == "none" || str == "None" || str == "disable" ||
+                 str == "Disable") {
                cli.image_type = image::ImageType::Disable;
                return;
              }
