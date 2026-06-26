@@ -1,8 +1,12 @@
+#define _CRT_SECURE_NO_WARNINGS
+
 #include "settings.hpp"
 
+#include <cstdlib>
 #include <filesystem>
 
 #include <fmt/format.h>
+#include <fmt/xchar.h>
 
 extern "C" {
 #include <lauxlib.h>
@@ -126,68 +130,110 @@ static int l_text_add(lua_state *L) {
 }
 
 void run_config(std::filesystem::path const &path, Settings &set) {
-  Config_LuaState lua{};
-
-  lua_pushlightuserdata(lua.L, &set);
-  lua_setfield(lua.L, LUA_REGISTRYINDEX, INFOCH_CONTEXT_LUA);
-
-  constexpr struct luaL_Reg g_api_funcs[] = {
-      {.name = "image_set", .func = l_image_set},
-      {.name = "text_set", .func = l_text_set},
-      {.name = "text_add", .func = l_text_add},
-      {.name = nullptr, .func = nullptr}};
-
   {
-    if (path.empty()) {
-      throw std::runtime_error(fmt::format(
-          "(run_config) failed to run config: config path is empty: {}",
-#ifdef _WIN32
-          reinterpret_cast<const char *>(path.u8string().c_str())
-#else
-          path.c_str()
-#endif
-              ));
+    Config_LuaState lua{};
 
-      auto fstat = std::filesystem::status(path);
+    lua_pushlightuserdata(lua.L, &set);
+    lua_setfield(lua.L, LUA_REGISTRYINDEX, INFOCH_CONTEXT_LUA);
 
-      if (!std::filesystem::exists(fstat)) {
+    constexpr struct luaL_Reg g_api_funcs[] = {
+        {.name = "image_set", .func = l_image_set},
+        {.name = "text_set", .func = l_text_set},
+        {.name = "text_add", .func = l_text_add},
+        {.name = nullptr, .func = nullptr}};
+
+    {
+      if (path.empty()) {
         throw std::runtime_error(fmt::format(
-            "(run_config) failed to run config: config path doesn't exist: {}",
+            "(run_config) failed to run config: config path is empty: {}",
 #ifdef _WIN32
             reinterpret_cast<const char *>(path.u8string().c_str())
 #else
             path.c_str()
 #endif
                 ));
-      }
 
-      if (std::filesystem::is_directory(path)) {
-        throw std::runtime_error(fmt::format(
-            "(run_config) failed to run config: config path is a directory: {}",
+        auto fstat = std::filesystem::status(path);
+
+        if (!std::filesystem::exists(fstat)) {
+          throw std::runtime_error(fmt::format(
+              "(run_config) failed to run config: config path doesn't exist: "
+              "{}",
 #ifdef _WIN32
-            reinterpret_cast<const char *>(path.u8string().c_str())
+              reinterpret_cast<const char *>(path.u8string().c_str())
 #else
-            path.c_str()
+              path.c_str()
 #endif
-                ));
+                  ));
+        }
+
+        if (std::filesystem::is_directory(path)) {
+          throw std::runtime_error(fmt::format(
+              "(run_config) failed to run config: config path is a directory: "
+              "{}",
+#ifdef _WIN32
+              reinterpret_cast<const char *>(path.u8string().c_str())
+#else
+              path.c_str()
+#endif
+                  ));
+        }
       }
+    }
+
+    lua_pushglobaltable(lua.L);
+    luaL_setfuncs(lua.L, g_api_funcs, 0);
+    lua_pop(lua.L, 1);
+
+#ifdef _WIN32
+    auto u8 = path.u8string();
+#endif
+
+    const auto *c =
+#ifdef _WIN32
+        reinterpret_cast<const char *>(u8.c_str())
+#else
+        path.c_str()
+#endif
+        ;
+    if (luaL_dofile(lua.L, c) != LUA_OK) {
+      throw std::runtime_error(
+          fmt::format("(run_config) failed to run config: Lua error: {}",
+                      lua_tostring(lua.L, -1)));
     }
   }
 
-  lua_pushglobaltable(lua.L);
-  luaL_setfuncs(lua.L, g_api_funcs, 0);
-  lua_pop(lua.L, 1);
+  {
+    // Post run
+    {
+      std::u8string str = set.image.path.u8string();
 
-  if (luaL_dofile(lua.L,
-#ifndef _WIN32
-                  path.c_str()
+      if (!str.empty() && str[0] == u8'~') {
+        const char *home = nullptr;
+#ifdef _WIN32
+        home = std::getenv("USERPROFILE");
+        if (!home) {
+          static std::string str =
+              std::string(std::getenv("HOMEDRIVE") ? std::getenv("HOMEDRIVE")
+                                                   : "") +
+              std::string(std::getenv("HOMEPATH") ? std::getenv("HOMEPATH")
+                                                  : "");
+          home = str.c_str();
+        }
 #else
-                  reinterpret_cast<const char *>(path.u8string().c_str())
+        home = std::getenv("HOME");
 #endif
-                      ) != LUA_OK) {
-    throw std::runtime_error(
-        fmt::format("(run_config) failed to run config: Lua error: {}",
-                    lua_tostring(lua.L, -1)));
+        if (!home) {
+          throw std::runtime_error("(run_config) failed to expand tilde");
+        }
+
+        if (str.length() > 1) {
+          set.image.path = std::filesystem::path(home) / str.substr(2);
+        } else {
+          set.image.path = std::filesystem::path(home);
+        }
+      }
+    }
   }
 }
 } // namespace settings

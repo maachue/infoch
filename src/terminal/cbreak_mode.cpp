@@ -1,5 +1,4 @@
 #include "cbreak_mode.hpp"
-#include <stdexcept>
 
 #ifndef _WIN32
 #include <fcntl.h>

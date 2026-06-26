@@ -83,6 +83,8 @@ void print_image(settings::Image &set, std::uint16_t &curr_x,
 #endif
                 ));
       }
+
+      set.path = std::filesystem::canonical(set.path); // expand!
     }
 
     if (set.type == ImageType::Disable) {
