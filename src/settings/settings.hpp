@@ -1,7 +1,7 @@
 #ifndef INFOCH_SETTINGS_SETTINGS_H
 #define INFOCH_SETTINGS_SETTINGS_H
 
-#include <string_view>
+#include <string>
 
 #include "settings/image.hpp"
 
@@ -14,11 +14,10 @@ namespace settings {
 struct Settings {
   Image image;
   std::uint16_t text_padding_t;
-  std::string_view text_str;
+  std::string text_str;
 };
 
-settings::Settings set_from_conf(config::Image const &img,
-                                 config::Text const &text);
+void run_config(std::filesystem::path const &path, Settings &set);
 } // namespace settings
 
 #endif

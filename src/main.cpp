@@ -1,4 +1,3 @@
-#include <climits>
 #include <exception>
 
 #include <fmt/base.h>
@@ -11,7 +10,6 @@ extern "C" {
 
 #include "cli.hpp"
 #include "cli_override.hpp"
-#include "config/conf.hpp"
 #include "image/image.hpp"
 #include "settings/settings.hpp"
 #include "terminal/cbreak_mode.hpp"
@@ -24,9 +22,9 @@ int main(int argc, char **argv) {
   cli::Cli cli = cli::cli_parse(argc, argv);
 
   try {
-    config::run_config(cli.config);
+    settings::Settings set{};
 
-    auto set = settings::set_from_conf(config::g_image, config::g_text);
+    settings::run_config(cli.config, set);
 
     cli::cli_override(set, cli);
 

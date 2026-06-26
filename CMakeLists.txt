@@ -29,7 +29,6 @@ set(PROJECT_SOURCES src/main.cpp
                     src/image/utils.cpp
                     src/image/protocol/kitty.cpp
                     src/image/protocol/iterm.cpp
-                    src/config/conf.cpp
                     src/cli_override.cpp
                     src/settings/settings.cpp
 )
