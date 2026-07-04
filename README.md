@@ -1,5 +1,9 @@
 # infoch
 
+## What is this?
+
+Don't ask me
+
 ## Roadmap
 
 - [ ] Config?
