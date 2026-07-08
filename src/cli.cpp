@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cassert>
+#include <charconv>
 #include <cstdlib>
 #include <exception>
 #include <filesystem>

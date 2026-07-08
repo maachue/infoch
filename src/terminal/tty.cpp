@@ -2,6 +2,7 @@
 
 #ifndef _WIN32
 #include <fcntl.h>
+#include <unistd.h>
 #else
 #include <windows.h>
 #endif

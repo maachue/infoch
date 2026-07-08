@@ -9,6 +9,7 @@
 #endif
 
 #include <atomic>
+#include <cstdlib>
 #include <system_error>
 
 #include <fmt/core.h>
