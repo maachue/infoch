@@ -13,10 +13,24 @@ extern "C" {
 #include "image/image.hpp"
 #include "settings/settings.hpp"
 #include "terminal/cbreak_mode.hpp"
-#include "terminal/detection.hpp"
 #include "terminal/io.hpp"
 #include "terminal/term_size.hpp"
 #include "terminal/tty.hpp"
+
+void nested_exception_print(std::exception const &err,
+                            std::string_view context = "") {
+  if (context.empty()) {
+    fmt::print(stderr, "\x1b[31;1merror:\x1b[0m: {}", err.what());
+  } else {
+    fmt::print(stderr, "{}{}", context, err.what());
+  }
+
+  try {
+    std::rethrow_if_nested(err);
+  } catch (std::exception const &nested_err) {
+    nested_exception_print(nested_err, ": ");
+  }
+}
 
 int main(int argc, char **argv) {
   cli::Cli cli = cli::cli_parse(argc, argv);
@@ -55,24 +69,30 @@ int main(int argc, char **argv) {
       } // this will flush when BuffLifetime::~BuffLifetime() call
     } opt_config_do_not_touch{};
 
-    terminal::fetch_terminal_size();
-
-    auto const term = terminal::get_terminal();
-    terminal::println("TERM:\n{}\nEND", term);
-
-    std::uint16_t x = 0;
-    std::uint16_t y = 0;
-
-    std::exception_ptr ptr = nullptr;
-    image::print_image(set.image, x, y, ptr);
-    if (ptr) {
-      std::rethrow_exception(ptr);
+    bool failed = false;
+    try {
+      terminal::fetch_terminal_size();
+    } catch (std::exception const &err) {
+      failed = true;
+      nested_exception_print(err);
+      fmt::println(stderr, ".");
     }
 
-    terminal::print("!!!!"); // check cursor postion after print (debug)
-    terminal::flush();
+    if (!failed) {
+      std::uint16_t x = 0;
+      std::uint16_t y = 0;
 
-    terminal::println("\n\n\n{}x{}", x, y);
+      std::exception_ptr ptr = nullptr;
+      image::print_image(set.image, x, y, ptr);
+      if (ptr) {
+        std::rethrow_exception(ptr);
+      }
+
+      terminal::print("!!!!"); // check cursor postion after print (debug)
+      terminal::flush();
+
+      terminal::println("\n\n\n{}x{}", x, y);
+    }
 
     terminal::println("\n\n\n\n\n\n\n{}", set.text_str);
   } catch (std::exception const &err) {
