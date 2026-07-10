@@ -1,4 +1,6 @@
+#include <clocale>
 #include <exception>
+#include <locale>
 
 #include <fmt/base.h>
 
@@ -33,6 +35,14 @@ void nested_exception_print(std::exception const &err,
 }
 
 int main(int argc, char **argv) {
+  if (std::setlocale(LC_CTYPE, "en_US.UTF-8") != nullptr) {
+    std::locale::global(std::locale("en_US.UTF-8"));
+  } else {
+    if (std::setlocale(LC_CTYPE, "C.UTF-8") != nullptr) {
+      std::locale::global(std::locale("C.UTF-8"));
+    }
+  }
+
   cli::Cli cli = cli::cli_parse(argc, argv);
 
   try {

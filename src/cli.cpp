@@ -1,5 +1,18 @@
 #include "cli.hpp"
 
+#ifdef __unix__
+#include <strings.h>
+#define MAACHUE_INFOCH_STRNCASECMP strncasecmp
+#else
+#include <cstring>
+
+#ifdef _WIN32
+#define MAACHUE_INFOCH_STRNCASECMP _strnicmp
+#else
+#error "unsupported platform"
+#endif
+#endif
+
 #include <array>
 #include <cassert>
 #include <charconv>
@@ -43,7 +56,6 @@ void help_msg() {
              "  {1}-h, --help{0}                                 Show this help message\n"
              "  {1}-c, --config{0} {3}<config>{0}                      Specify the config file to load\n"
              "  {1}    --force-tty{0}                            Force output to terminal, ignoring shell redirections\n"
-             "  {1}    --ignore-redirect{0}                      Ignore shell output redirection\n"
              "  {1}-i, --image{0} {3}<logo>{0}                         Set the image source. \"none\" to disable\n"
              "  {1}-T, --image-type{0} {3}<enum>{0}                    Set type of iamge\n"
              "  {1}    --image-width{0} {3}<num>{0}                    Set the width of the image in cells\n"
@@ -67,8 +79,6 @@ constexpr std::array kCliArgs = {
            }),
     CliOpt("force-tty", {}, false,
            [](Cli &cli, std::string_view) { cli.no_redirect = true; }),
-    CliOpt("ignore-redirect", {}, false,
-           [](Cli &cli, std::string_view) { cli.no_check_stdout = true; }),
     CliOpt("image", "i", true,
            [](Cli &cli, std::string_view str) {
              cli.image = std::filesystem::path(str);
@@ -76,31 +86,16 @@ constexpr std::array kCliArgs = {
            }),
     CliOpt("image-type", "T", true,
            [](Cli &cli, std::string_view str) {
-             if (str == "none" || str == "None" || str == "disable" ||
-                 str == "Disable") {
-               cli.image_type = image::ImageType::Disable;
-               return;
-             }
+             for (int i = 0; i < image::kImagetypeNameStrArr.size(); ++i) {
+               auto str_comp = image::kImagetypeNameStrArr[i];
 
-             if (str == "kitty" || str == "Kitty") {
-               cli.image_type = image::ImageType::Kitty;
-               return;
-             }
-
-             if (str == "kitty-path" || str == "KittyPath" ||
-                 str == "kitty_path") {
-               cli.image_type = image::ImageType::KittyPath;
-               return;
-             }
-
-             if (str == "sixel" || str == "Sixel") {
-               cli.image_type = image::ImageType::Sixel;
-               return;
-             }
-
-             if (str == "iterm" || str == "Iterm") {
-               cli.image_type = image::ImageType::Iterm;
-               return;
+               if (str.size() == str_comp.size() &&
+                   // NOLINTNEXTLINE(bugprone-suspicious-stringview-data-usage)
+                   MAACHUE_INFOCH_STRNCASECMP(str.data(), str_comp.data(),
+                                              str_comp.size()) == 0) {
+                 cli.image_type = static_cast<image::ImageType>(i);
+                 return;
+               }
              }
 
              throw std::runtime_error(
