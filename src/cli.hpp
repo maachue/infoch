@@ -9,6 +9,7 @@
 namespace cli {
 struct Cli {
   std::filesystem::path config;
+  bool no_config;
 
   // debug
   bool no_redirect;
@@ -17,12 +18,13 @@ struct Cli {
   // image
   std::filesystem::path image;
   std::optional<image::ImageType> image_type;
+  bool image_not_keep_aspect;
 
-  std::uint16_t image_width;
-  std::uint16_t image_height;
+  std::optional<std::uint16_t> image_width;
+  std::optional<std::uint16_t> image_height;
 
-  std::uint16_t image_padding_left;
-  std::uint16_t image_padding_top;
+  std::optional<std::uint16_t> image_padding_left;
+  std::optional<std::uint16_t> image_padding_top;
 };
 
 Cli cli_parse(int argc, char **argv) noexcept;

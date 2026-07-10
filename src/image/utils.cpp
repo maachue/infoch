@@ -15,7 +15,15 @@ namespace image::internal {
 void get_size_from_cell_size(DetailedImageSize &in, size_t image_w,
                              size_t image_h) {
   terminal::TermSize termsize = terminal::termsize;
-  assert(!termsize.is_zero());
+  if (termsize.is_zero()) {
+    terminal::fetch_terminal_size();
+
+    termsize = terminal::termsize;
+    if (termsize.is_zero()) {
+      throw std::runtime_error(
+          "(get_size_from_cell_size) terminal size is zero!");
+    }
+  }
 
   auto ratio = static_cast<double>(image_h) / image_w; // NOLINT
   if (std::isnan(ratio)) {

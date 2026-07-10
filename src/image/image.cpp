@@ -7,7 +7,6 @@
 #endif
 
 #include <cstdint>
-#include <exception>
 #include <filesystem>
 #include <stdexcept>
 
@@ -48,175 +47,162 @@ void modified_hehe(ImageType &set) {
 }
 
 void print_image(settings::Image &set, std::uint16_t &curr_x,
-                 std::uint16_t &curr_y, std::exception_ptr &err) noexcept {
-  err = nullptr;
+                 std::uint16_t &curr_y) {
+  if (set.type == ImageType::Disable) {
+    return;
+  }
 
-  try {
-    // path
-    if (set.path.empty()) {
-      throw std::runtime_error("(print_image) image path is empty");
-    }
+  // path
+  if (set.path.empty()) {
+    throw std::runtime_error("(print_image) image path is empty");
+  }
 
-    {
-      auto fstat = std::filesystem::status(set.path);
+  {
+    auto fstat = std::filesystem::status(set.path);
 
-      if (!std::filesystem::exists(fstat)) {
-        throw std::runtime_error(
-            fmt::format("(print_image) image path doesn't exist: {}",
+    if (!std::filesystem::exists(fstat)) {
+      throw std::runtime_error(
+          fmt::format("(print_image) image path doesn't exist: {}",
 #ifdef _WIN32
-                        reinterpret_cast<const char *>(
-                            set.path.u8string()
-                                .data()) // .c_str() on windows returned wchar *
+                      reinterpret_cast<const char *>(
+                          set.path.u8string()
+                              .data()) // .c_str() on windows returned wchar *
 #else
-                        set.path.c_str()
+                      set.path.c_str()
 #endif
-                        ));
-      }
+                      ));
+    }
 
-      if (std::filesystem::is_directory(fstat)) {
-        throw std::runtime_error(fmt::format(
-            "(print_image) image path is a directory: {}",
+    if (std::filesystem::is_directory(fstat)) {
+      throw std::runtime_error(
+          fmt::format("(print_image) image path is a directory: {}",
 #ifdef _WIN32
-            reinterpret_cast<const char *>(set.path.u8string().data())
+                      reinterpret_cast<const char *>(set.path.u8string().data())
 #else
-            set.path.c_str()
+                      set.path.c_str()
 #endif
-                ));
-      }
-
-      set.path = std::filesystem::canonical(set.path); // expand!
+                          ));
     }
 
-    if (set.type == ImageType::Disable) {
-      return;
-    }
+    set.path = std::filesystem::canonical(set.path); // expand!
+  }
 
-    if (set.padding_height != 0) {
-      terminal::print("\x1b[{}B", set.padding_height);
-      curr_y += set.padding_height;
-    }
+  if (set.padding_height != 0) {
+    terminal::print("\x1b[{}B", set.padding_height);
+    curr_y += set.padding_height;
+  }
 
-    if (set.padding_width != 0) {
-      terminal::print("\x1b[{}C", set.padding_width);
-      curr_x += set.padding_width;
-    }
+  if (set.padding_width != 0) {
+    terminal::print("\x1b[{}C", set.padding_width);
+    curr_x += set.padding_width;
+  }
 
-    size_t width = 0;
-    size_t height = 0;
+  size_t width = 0;
+  size_t height = 0;
 
-    if (set.type == ImageType::Auto) {
-      modified_hehe(set.type);
-    }
+  if (set.type == ImageType::Auto) {
+    modified_hehe(set.type);
+  }
 
-    Magick::Image image;
-    {
-      auto path = set.path.u8string();
-      std::string p(path.begin(), path.end());
-      if (set.type == ImageType::KittyPath) {
-        image.ping(p);
-      } else {
-        image.read(p);
-      }
-    }
-
-    DetailedImageSize render_image_size{.cell_width = set.cell_width,
-                                        .cell_height = set.cell_height};
-
-    internal::get_size_from_cell_size(render_image_size, image.columns(),
-                                      image.rows());
-
-    curr_x += render_image_size.cell_width;
-    curr_y += render_image_size.cell_height;
-
-    fmt::println(stderr, "BE-RESIZE: {} xx {}c @ {} xx {}px",
-                 render_image_size.cell_width, render_image_size.cell_height,
-                 render_image_size.pixel_width, render_image_size.pixel_height);
-
+  Magick::Image image;
+  {
+    auto path = set.path.u8string();
+    std::string p(path.begin(), path.end());
     if (set.type == ImageType::KittyPath) {
-      internal::kitty_path_print_image(set.path, render_image_size);
-      return;
+      image.ping(p);
+    } else {
+      image.read(p);
     }
+  }
 
-    image.resize(Magick::Geometry(render_image_size.pixel_width,
-                                  render_image_size.pixel_height));
-    render_image_size.pixel_width = image.columns();
-    render_image_size.pixel_height = image.rows();
+  DetailedImageSize render_image_size{.cell_width = set.cell_width,
+                                      .cell_height = set.cell_height};
 
-    fmt::println(stderr, "RESIZE: {} xx {}c @ {} xx {}px",
-                 render_image_size.cell_width, render_image_size.cell_height,
-                 render_image_size.pixel_width, render_image_size.pixel_height);
+  internal::get_size_from_cell_size(render_image_size, image.columns(),
+                                    image.rows());
 
-    // print ruler
-    constexpr int kSizeRuler = 25;
-    if constexpr (kSizeRuler != 0) {
-      curr_x += 1;
-      curr_y += 1;
+  curr_x += render_image_size.cell_width;
+  curr_y += render_image_size.cell_height;
 
-      int i = 1;
-      char c = '0';
-      for (; i <= kSizeRuler; ++i) {
-        terminal::print("{}", c++);
-      }
-      terminal::print("\n");
-      c = '0';
-      for (i = 1; i <= kSizeRuler; ++i) {
-        if (set.padding_width != 0) {
-          terminal::print("\x1b[{}C", set.padding_width);
-        }
-        terminal::print("{}\n", c++);
-      }
-      terminal::print("\x1b[{}A", kSizeRuler);
+  if (set.type == ImageType::KittyPath) {
+    internal::kitty_path_print_image(set.path, render_image_size);
+    return;
+  }
+
+  auto tmp = Magick::Geometry(render_image_size.pixel_width,
+                              render_image_size.pixel_height);
+  if (set.image_not_keep_aspect) {
+    tmp.aspect(true);
+  }
+  image.resize(tmp);
+  render_image_size.pixel_width = image.columns();
+  render_image_size.pixel_height = image.rows();
+
+  // print ruler
+  constexpr int kSizeRuler = 25;
+  if constexpr (kSizeRuler != 0) {
+    curr_x += 1;
+    curr_y += 1;
+
+    int i = 1;
+    char c = '0';
+    for (; i <= kSizeRuler; ++i) {
+      terminal::print("{}", c++);
+    }
+    terminal::print("\n");
+    c = '0';
+    for (i = 1; i <= kSizeRuler; ++i) {
       if (set.padding_width != 0) {
         terminal::print("\x1b[{}C", set.padding_width);
       }
-      terminal::print("\x1b[{}C", 1);
-      terminal::flush();
+      terminal::print("{}\n", c++);
     }
-
-    switch (set.type) {
-    case ImageType::Kitty:
-      image.magick("RGBA");
-      break;
-    case ImageType::Iterm:
-      image.magick("TIFF");
-      break;
-    case ImageType::Sixel:
-      image.magick("SIXEL");
-      break;
-    default:
-      return;
+    terminal::print("\x1b[{}A", kSizeRuler);
+    if (set.padding_width != 0) {
+      terminal::print("\x1b[{}C", set.padding_width);
     }
+    terminal::print("\x1b[{}C", 1);
+    terminal::flush();
+  }
 
-    Magick::Blob blob;
-    image.write(&blob);
-
-    switch (set.type) {
-    case ImageType::Sixel: {
-
-      terminal::print(
-          "{}", std::string_view((const char *)blob.data(), blob.length()));
-
-      terminal::flush();
-      break;
-    case ImageType::Kitty: {
-      auto str = blob.base64();
-      internal::kitty_print_image(str, render_image_size);
-      break;
-    }
-    case ImageType::Iterm: {
-      auto str = blob.base64();
-      internal::iterm_print_image(str, render_image_size);
-      break;
-    }
-    default:
-      break;
-    }
-    }
-
+  switch (set.type) {
+  case ImageType::Kitty:
+    image.magick("RGBA");
+    break;
+  case ImageType::Iterm:
+    image.magick("TIFF");
+    break;
+  case ImageType::Sixel:
+    image.magick("SIXEL");
+    break;
+  default:
     return;
-  } catch (...) {
-    err = std::current_exception();
-    return;
+  }
+
+  Magick::Blob blob;
+  image.write(&blob);
+
+  switch (set.type) {
+  case ImageType::Sixel: {
+
+    terminal::print("{}",
+                    std::string_view((const char *)blob.data(), blob.length()));
+
+    terminal::flush();
+    break;
+  case ImageType::Kitty: {
+    auto str = blob.base64();
+    internal::kitty_print_image(str, render_image_size);
+    break;
+  }
+  case ImageType::Iterm: {
+    auto str = blob.base64();
+    internal::iterm_print_image(str, render_image_size);
+    break;
+  }
+  default:
+    break;
+  }
   }
 }
 } // namespace image

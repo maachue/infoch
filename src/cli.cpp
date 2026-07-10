@@ -55,13 +55,15 @@ void help_msg() {
   fmt::print("{2}Options:{0}\n"
              "  {1}-h, --help{0}                                 Show this help message\n"
              "  {1}-c, --config{0} {3}<config>{0}                      Specify the config file to load\n"
+             "  {1}    --no-config{0}                            Do not load the config, use cli instead\n"
              "  {1}    --force-tty{0}                            Force output to terminal, ignoring shell redirections\n"
              "  {1}-i, --image{0} {3}<logo>{0}                         Set the image source. \"none\" to disable\n"
              "  {1}-T, --image-type{0} {3}<enum>{0}                    Set type of iamge\n"
+             "  {1}    --image-resize-ignore-aspect-ratio{0}           Do not keep the aspect ratio of input image when resize\n"
              "  {1}    --image-width{0} {3}<num>{0}                    Set the width of the image in cells\n"
              "  {1}    --image-height{0} {3}<num>{0}                   Set the height of the image in cells\n"
-             "  {1}    --image-padding-left{0} {3}num{0}                  Set the padding image from left\n"
-             "  {1}    --image-padding-top{0} {3}num{0}                 Set the padding image from top\n",
+             "  {1}    --image-padding-left{0} {3}<num>{0}                  Set the padding image from left\n"
+             "  {1}    --image-padding-top{0} {3}<num>{0}                 Set the padding image from top\n",
              kReset, kBold, kBoldUnderline, kItalic);
   // clang-format on
 }
@@ -77,6 +79,8 @@ constexpr std::array kCliArgs = {
            [](Cli &cli, std::string_view str) {
              cli.config = std::filesystem::path(str);
            }),
+    CliOpt("no-config", {}, false,
+           [](Cli &cli, std::string_view) { cli.no_config = true; }),
     CliOpt("force-tty", {}, false,
            [](Cli &cli, std::string_view) { cli.no_redirect = true; }),
     CliOpt("image", "i", true,
@@ -101,45 +105,56 @@ constexpr std::array kCliArgs = {
              throw std::runtime_error(
                  fmt::format("unknown \"--image-type\" value: {}", str));
            }),
+    CliOpt(
+        "image-resize-ignore-aspect-ratio", {}, false,
+        [](Cli &cli, std::string_view) { cli.image_not_keep_aspect = true; }),
     CliOpt("image-width", {}, true,
            [](Cli &cli, std::string_view str) {
-             auto [ptr, err] = std::from_chars(
-                 str.data(), str.data() + str.length(), cli.image_width);
+             std::uint16_t tmp = 0;
+             auto [ptr, err] =
+                 std::from_chars(str.data(), str.data() + str.length(), tmp);
              if (err != std::errc{}) {
                throw std::system_error(
                    std::make_error_code(err),
                    fmt::format(R"(invalid "--image-width" value "{}")", str));
              }
+             cli.image_width = tmp;
            }),
     CliOpt("image-height", {}, true,
            [](Cli &cli, std::string_view str) {
-             auto [ptr, err] = std::from_chars(
-                 str.data(), str.data() + str.length(), cli.image_height);
+             std::uint16_t tmp = 0;
+             auto [ptr, err] =
+                 std::from_chars(str.data(), str.data() + str.length(), tmp);
              if (err != std::errc{}) {
                throw std::system_error(
                    std::make_error_code(err),
                    fmt::format(R"(invalid "--image-height" value "{}")", str));
              }
+             cli.image_height = tmp;
            }),
     CliOpt("image-padding-left", {}, true,
            [](Cli &cli, std::string_view str) {
-             auto [ptr, err] = std::from_chars(
-                 str.data(), str.data() + str.length(), cli.image_padding_left);
+             std::uint16_t tmp = 0;
+             auto [ptr, err] =
+                 std::from_chars(str.data(), str.data() + str.length(), tmp);
              if (err != std::errc{}) {
                throw std::system_error(
                    std::make_error_code(err),
                    fmt::format(R"(invalid "--image-padding-left" value "{}")",
                                str));
              }
+             cli.image_padding_left = tmp;
            }),
     CliOpt("image-padding-top", {}, true, [](Cli &cli, std::string_view str) {
-      auto [ptr, err] = std::from_chars(str.data(), str.data() + str.length(),
-                                        cli.image_padding_top);
+      std::uint16_t tmp = 0;
+      auto [ptr, err] =
+          std::from_chars(str.data(), str.data() + str.length(), tmp);
       if (err != std::errc{}) {
         throw std::system_error(
             std::make_error_code(err),
             fmt::format(R"(invalid "--image-padding-top" value "{}")", str));
       }
+      cli.image_padding_top = tmp;
     })};
 
 // NOLINTBEGIN(readability-function-cognitive-complexity)

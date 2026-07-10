@@ -16,23 +16,7 @@ extern "C" {
 #include "settings/settings.hpp"
 #include "terminal/cbreak_mode.hpp"
 #include "terminal/io.hpp"
-#include "terminal/term_size.hpp"
 #include "terminal/tty.hpp"
-
-void nested_exception_print(std::exception const &err,
-                            std::string_view context = "") {
-  if (context.empty()) {
-    fmt::print(stderr, "\x1b[31;1merror:\x1b[0m: {}", err.what());
-  } else {
-    fmt::print(stderr, "{}{}", context, err.what());
-  }
-
-  try {
-    std::rethrow_if_nested(err);
-  } catch (std::exception const &nested_err) {
-    nested_exception_print(nested_err, ": ");
-  }
-}
 
 int main(int argc, char **argv) {
   if (std::setlocale(LC_CTYPE, "en_US.UTF-8") != nullptr) {
@@ -48,7 +32,9 @@ int main(int argc, char **argv) {
   try {
     settings::Settings set{};
 
-    settings::run_config(cli.config, set);
+    if (!cli.no_config) {
+      settings::run_config(cli.config, set);
+    }
 
     cli::cli_override(set, cli);
 
@@ -80,33 +66,25 @@ int main(int argc, char **argv) {
     } opt_config_do_not_touch{};
 
     bool failed = false;
-    try {
-      terminal::fetch_terminal_size();
-    } catch (std::exception const &err) {
-      failed = true;
-      nested_exception_print(err);
-      fmt::println(stderr, ".");
-    }
 
-    if (!failed) {
+    try {
       std::uint16_t x = 0;
       std::uint16_t y = 0;
-
-      std::exception_ptr ptr = nullptr;
-      image::print_image(set.image, x, y, ptr);
-      if (ptr) {
-        std::rethrow_exception(ptr);
-      }
-
+      image::print_image(set.image, x, y);
       terminal::print("!!!!"); // check cursor postion after print (debug)
       terminal::flush();
 
       terminal::println("\n\n\n{}x{}", x, y);
+    } catch (std::exception const &err) {
+      fmt::println(stderr,
+                   "\x1b[31;1merror:\x1b[0m Something went wrong when "
+                   "printing image: {}",
+                   err.what());
     }
 
     terminal::println("\n\n\n\n\n\n\n{}", set.text_str);
   } catch (std::exception const &err) {
-    fmt::println(stderr, "\x1b[31;1merror:\x1b[0m {}.", err.what());
+    fmt::println(stderr, "\x1b[31;1merror:\x1b[0m {}", err.what());
     return 1;
   }
 }

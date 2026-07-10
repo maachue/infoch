@@ -7,7 +7,6 @@
 #endif
 
 #include <atomic>
-#include <exception>
 #include <system_error>
 
 #include "terminal/term_size_query.hpp"
@@ -22,7 +21,6 @@ const std::error_category &termfetchsize_category() noexcept {
 }
 
 void fetch_terminal_size() {
-  try {
 #ifndef _WIN32
     struct winsize winsize{};
 
@@ -84,8 +82,5 @@ void fetch_terminal_size() {
                               "(fetch_terminal_size) cannot get terminal size");
     }
 #endif
-  } catch (...) {
-    std::throw_with_nested(std::runtime_error("failed to fetch terminal size"));
-  }
 }
 } // namespace terminal

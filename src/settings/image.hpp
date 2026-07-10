@@ -10,6 +10,7 @@ namespace settings {
 struct Image {
   std::filesystem::path path;
   image::ImageType type;
+  bool image_not_keep_aspect;
 
   std::uint16_t cell_width;
   std::uint16_t cell_height;
