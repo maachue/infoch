@@ -88,7 +88,9 @@ void print_image(settings::Image &set, std::uint16_t &curr_x,
   }
 
   if (set.padding_height != 0) {
-    terminal::print("\x1b[{}B", set.padding_height);
+    for (std::uint16_t i = 0; i < set.padding_height; ++i) {
+      terminal::print("\n");
+    }
     curr_y += set.padding_height;
   }
 
@@ -96,6 +98,7 @@ void print_image(settings::Image &set, std::uint16_t &curr_x,
     terminal::print("\x1b[{}C", set.padding_width);
     curr_x += set.padding_width;
   }
+  terminal::flush();
 
   size_t width = 0;
   size_t height = 0;
@@ -137,33 +140,6 @@ void print_image(settings::Image &set, std::uint16_t &curr_x,
   image.resize(tmp);
   render_image_size.pixel_width = image.columns();
   render_image_size.pixel_height = image.rows();
-
-  // print ruler
-  constexpr int kSizeRuler = 25;
-  if constexpr (kSizeRuler != 0) {
-    curr_x += 1;
-    curr_y += 1;
-
-    int i = 1;
-    char c = '0';
-    for (; i <= kSizeRuler; ++i) {
-      terminal::print("{}", c++);
-    }
-    terminal::print("\n");
-    c = '0';
-    for (i = 1; i <= kSizeRuler; ++i) {
-      if (set.padding_width != 0) {
-        terminal::print("\x1b[{}C", set.padding_width);
-      }
-      terminal::print("{}\n", c++);
-    }
-    terminal::print("\x1b[{}A", kSizeRuler);
-    if (set.padding_width != 0) {
-      terminal::print("\x1b[{}C", set.padding_width);
-    }
-    terminal::print("\x1b[{}C", 1);
-    terminal::flush();
-  }
 
   switch (set.type) {
   case ImageType::Kitty:

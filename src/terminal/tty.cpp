@@ -70,6 +70,9 @@ void open_devtty() {
 
   termout_handle.store(termout_h);
   termin_handle.store(termin_h);
+
+  SetConsoleOutputCP(CP_UTF8);
+  SetConsoleCP(CP_UTF8);
 }
 
 void close_devtty() {

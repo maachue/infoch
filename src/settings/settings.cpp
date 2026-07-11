@@ -68,7 +68,7 @@ static int l_text_set(lua_state *L) noexcept {
   if (ctx == nullptr) {
     return luaL_error(L, "cannot get the context");
   }
-  auto d = luaL_checknumber(L, 1);
+  auto d = luaL_checkinteger(L, 1);
   if (d < 0 || d > UINT16_MAX) {
     return luaL_argerror(L, 1, "invalid range (must in range: [0, 65535])");
   }
@@ -89,10 +89,10 @@ static int l_image_set(lua_state *L) noexcept {
     return luaL_argerror(L, 1, "image_set path must not empty");
   }
 
-  auto w = luaL_checknumber(L, 2);
-  auto h = luaL_checknumber(L, 3);
-  auto pw = luaL_checknumber(L, 4);
-  auto ph = luaL_checknumber(L, 5);
+  auto w = luaL_checkinteger(L, 2);
+  auto h = luaL_checkinteger(L, 3);
+  auto pw = luaL_checkinteger(L, 4);
+  auto ph = luaL_checkinteger(L, 5);
 
   if (w < 0 || w > UINT16_MAX) {
     return luaL_argerror(L, 2, "invalid range (must in range: [0, 65535])");
@@ -132,6 +132,9 @@ static int l_text_add(lua_state *L) {
 void run_config(std::filesystem::path const &path, Settings &set) {
   {
     Config_LuaState lua{};
+
+    lua_pushcfunction(lua.L, l_text_add);
+    lua_setglobal(lua.L, "print");
 
     lua_pushlightuserdata(lua.L, &set);
     lua_setfield(lua.L, LUA_REGISTRYINDEX, INFOCH_CONTEXT_LUA);

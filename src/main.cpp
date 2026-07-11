@@ -17,6 +17,7 @@ extern "C" {
 #include "terminal/cbreak_mode.hpp"
 #include "terminal/io.hpp"
 #include "terminal/tty.hpp"
+#include "text/text.hpp"
 
 int main(int argc, char **argv) {
   if (std::setlocale(LC_CTYPE, "en_US.UTF-8") != nullptr) {
@@ -67,14 +68,11 @@ int main(int argc, char **argv) {
 
     bool failed = false;
 
-    try {
-      std::uint16_t x = 0;
-      std::uint16_t y = 0;
-      image::print_image(set.image, x, y);
-      terminal::print("!!!!"); // check cursor postion after print (debug)
-      terminal::flush();
+    std::uint16_t x = 0;
+    std::uint16_t y = 0;
 
-      terminal::println("\n\n\n{}x{}", x, y);
+    try {
+      image::print_image(set.image, x, y);
     } catch (std::exception const &err) {
       fmt::println(stderr,
                    "\x1b[31;1merror:\x1b[0m Something went wrong when "
@@ -82,7 +80,9 @@ int main(int argc, char **argv) {
                    err.what());
     }
 
-    terminal::println("\n\n\n\n\n\n\n{}", set.text_str);
+    if (!cli.no_text) {
+      text::print_text(set.text_str, x, y);
+    }
   } catch (std::exception const &err) {
     fmt::println(stderr, "\x1b[31;1merror:\x1b[0m {}", err.what());
     return 1;

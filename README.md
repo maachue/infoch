@@ -15,7 +15,7 @@ This repository requires libraries below:
 
 - [{fmt}](https://github.com/fmtlib/fmt) - Thanks to [Victor Zverovich](https://github.com/vitaut) and all fmtlib contributors for this library, The MIT License
 - [ImageMagick](https://github.com/imagemagick/imagemagick) - Thanks to all ImageMagick contributors for this image library. require 7.0.0 or later, Magick++ components, ImageMagick License
-- [Lua](https://www.lua.org/) - Thanks to PUC-Rio university for this library, require 5.2 or later, The MIT License
+- [Lua](https://www.lua.org/) - Thanks to PUC-Rio university for this library, require 5.3 or later, The MIT License
 
 ## Credits
 

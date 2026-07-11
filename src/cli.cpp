@@ -145,17 +145,21 @@ constexpr std::array kCliArgs = {
              }
              cli.image_padding_left = tmp;
            }),
-    CliOpt("image-padding-top", {}, true, [](Cli &cli, std::string_view str) {
-      std::uint16_t tmp = 0;
-      auto [ptr, err] =
-          std::from_chars(str.data(), str.data() + str.length(), tmp);
-      if (err != std::errc{}) {
-        throw std::system_error(
-            std::make_error_code(err),
-            fmt::format(R"(invalid "--image-padding-top" value "{}")", str));
-      }
-      cli.image_padding_top = tmp;
-    })};
+    CliOpt("image-padding-top", {}, true,
+           [](Cli &cli, std::string_view str) {
+             std::uint16_t tmp = 0;
+             auto [ptr, err] =
+                 std::from_chars(str.data(), str.data() + str.length(), tmp);
+             if (err != std::errc{}) {
+               throw std::system_error(
+                   std::make_error_code(err),
+                   fmt::format(R"(invalid "--image-padding-top" value "{}")",
+                               str));
+             }
+             cli.image_padding_top = tmp;
+           }),
+    CliOpt("no-text", {}, false,
+           [](Cli &cli, std::string_view) { cli.no_text = true; })};
 
 // NOLINTBEGIN(readability-function-cognitive-complexity)
 Cli cli_parse(int argc, char **argv) noexcept {

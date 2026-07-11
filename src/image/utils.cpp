@@ -38,10 +38,18 @@ void get_size_from_cell_size(DetailedImageSize &in, size_t image_w,
     in.pixel_width = std::ceil(
         (static_cast<double>(termsize.pixel_width) / termsize.cell_width) *
         req_cell_w); // NOLINT
+    in.cell_width =
+        std::ceil(in.pixel_width /                            // NOLINT
+                  (static_cast<double>(termsize.pixel_width / // NOLINT
+                                       termsize.cell_width)));
 
     in.pixel_height = std::ceil(
         (static_cast<double>(termsize.pixel_height) / termsize.cell_height) *
         req_cell_h); // NOLINT
+    in.cell_height =
+        std::ceil(in.pixel_height /                            // NOLINT
+                  (static_cast<double>(termsize.pixel_height / // NOLINT
+                                       termsize.cell_height)));
   } else if (req_cell_w != 0) {
     in.pixel_width = std::ceil(
         (static_cast<double>(termsize.pixel_width) / termsize.cell_width) *

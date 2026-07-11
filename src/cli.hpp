@@ -14,6 +14,7 @@ struct Cli {
   // debug
   bool no_redirect;
   bool no_check_stdout;
+  bool no_text;
 
   // image
   std::filesystem::path image;
